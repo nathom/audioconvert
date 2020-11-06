@@ -2,7 +2,7 @@ from requests import get
 from bs4 import BeautifulSoup
 from re import findall
 import json
-import music_tag 
+import music_tag
 from os import listdir, rename, system
 from sys import argv
 from string import ascii_uppercase
@@ -11,13 +11,13 @@ from progress.bar import IncrementalBar
 
 # param: query
 # return: dict tags
-
+# searches discogs releases for query
+# returns first result by default
 def searchTags(query, result_item=0):
         query_formatted = query.replace(' ', '+')
         base_url = 'https://www.discogs.com'
         url = f'https://www.discogs.com/search/?q={query_formatted}&type=release'
         r = get(url)
-        print(url)
         try:
             soup = BeautifulSoup(r.content, features='lxml')
             links = soup.findAll("a", {"class": "search_result_title"})
@@ -26,8 +26,10 @@ def searchTags(query, result_item=0):
             r = get(page)
             r.encoding = 'utf-8'
             #print(r.content)
+
+            # gets the included json on the top of discogs page source
             start = '<script type="application\/ld\+json" id="release_schema">'
-            end = '<\/script>'            
+            end = '<\/script>'
             matches = findall(f'{start}[^<]+{end}', r.text)
             plain_text = matches[0][len(start):-len(end)]
             soup = BeautifulSoup(r.text, features='lxml')
@@ -37,14 +39,14 @@ def searchTags(query, result_item=0):
             for artist in artists_found:
                 a = [s[2:-4] for s in findall('">[^<]+</a>', str(artist))]
                 artists.append(a)
-            
-            
+
+
             info = json.loads(plain_text)
             for track in info['tracks']:
                 track['name'] = unescape(track['name'])
             #print(info)
-            
         except:
+            # if there are no results
             return 0
 
         #print(info)
@@ -54,20 +56,20 @@ def searchTags(query, result_item=0):
         alph = list(ascii_uppercase)
         track_pos = [(alph.index(pos[1:-1][0]) + 1, int(pos[1:-1][1:])) for pos in findall('"[A-Z]\d\d?"', r.text)]
         #print(track_pos)
+
         format = lambda strTime: (int(strTime[2]) * 3600 + int(strTime[4:6].replace('0', '', 1)) * 60 + int(strTime[7:9].replace('0', '', 1)))
+
         if len(track_pos) == len(tracks) and len(artists) == len(tracks):
             tracklist = [{'name': tracks[i]['name'].replace('&amp;', '&'), 'duration': format(tracks[i]['duration']), 'pos':track_pos[i], 'artists': artists[i]} for i in range(len(tracks))]
         elif len(track_pos) == len(tracks):
             tracklist = [{'name': tracks[i]['name'].replace('&amp;', '&'), 'duration': format(tracks[i]['duration']), 'pos':track_pos[i]} for i in range(len(tracks))]
         else:
             tracklist = [{'name': tracks[i]['name'].replace('&amp;', '&'), 'duration': format(tracks[i]['duration'])} for i in range(len(tracks))]
-        
         if len(info['genre']) > 3:
             genres = info['genre'][:3]
         else:
             genres = info['genre']
-        
-        
+
         tags = {
             'album' : release['name'], # String
             'artist': [artist['name'] for artist in release['byArtist']], # list
@@ -77,7 +79,7 @@ def searchTags(query, result_item=0):
             'genre' : genres, #list of genres
             'year' : str(release['datePublished']), #int
             'label': labels
-        } 
+        }
         return tags
 
 # sets the tags
@@ -90,12 +92,12 @@ def setTags(tags, no_disc):
             tags['tracklist'][-1]['pos']
         except KeyError:
             nd = True
-    
+
     genre_str = ''
     for g in tags['genre']:
         genre_str += (g + ', ' * ( len(tags['genre']) > 1 and g != tags['genre'][-1] ))
-    
-    system('clear')
+
+    # system('clear')
     bar = IncrementalBar('Setting tags...', max = len(tags['tracklist']))
 
     for track in tags['tracklist']:
@@ -112,17 +114,15 @@ def setTags(tags, no_disc):
             f['totaltracks'] = tags['numtracks']
             f['title'] = track['name']
             f['year'] = tags['year']
-            
+
             if nd:
                 f['tracknumber'] = index + 1
-                
+
             else:
                 f['discnumber'] = track['pos'][0]
                 f['tracknumber'] = track['pos'][1]
-            
-            
+
             f['genre'] = genre_str
-            
             album = tags['album']
             title = track['name']
 
@@ -134,10 +134,11 @@ def setTags(tags, no_disc):
                 f['artwork'] = img_in.read()
 
             f.save()
+
         except KeyError:
             pass
     bar.finish()
-        
+
 
 # matches tags with filepaths
 # param tags: dict tags
@@ -151,7 +152,7 @@ def matchTags(mod_tags, dir_path):
     for f in files:
         if ext(f) != 'flac' and ext(f) != 'm4a':
             files.remove(f)
-    
+
     files.sort()
     sorted_paths = []
     #print(files)
@@ -171,15 +172,13 @@ def matchTags(mod_tags, dir_path):
                 except KeyError:
                     mod_tags['tracklist'][mod_tags['tracklist'].index(track)]['path'] = f'{dir_path}/{filename}'
                     pass
-    
+
     for track in mod_tags['tracklist']:
         try:
             files.remove(getFilename(track['path']))
         except KeyError:
             pass
-    
-    
-    
+
     return mod_tags, files
 
 # Utilities
@@ -199,8 +198,10 @@ def colorize(text, color):
         return text
 
 # checks if word is in name
+# every word in the discogs track name must be in each file name
+# case insensitive
+# ignores single quotes
 def matches(word, name):
-    
     adj_word, adj_name = word.replace("'", ''), name.replace("'", '')
     r = findall(f'(?i){adj_word}', adj_name)
     if r != []:
@@ -221,12 +222,10 @@ def tryMatch(tags, path):
     print(f'{artist} - {album}', end='\n\n')
     for track in matched_tags['tracklist']:
         try:
-            
             name = colorize(track['name'], 1) + ' \u2192 '
             path = getFilename(track['path'])
             print(name, end='')
             print(path)
-            
         except KeyError:
             name = colorize(track['name'], 1) + ' \u2192 '
             print(name, end='')
@@ -249,9 +248,7 @@ if __name__ == "__main__":
     except:
         no_disc = False
 
-    
     getFilename = lambda path: path.split('/')[-1]
-    
 
     filename = getFilename(path)
     query = ' '.join(findall('\w+', filename))
@@ -283,11 +280,9 @@ if __name__ == "__main__":
                 print('Matches could not automatically be found.')
                 pass
         else:
-            #print(tags)
             matched_tags, not_matched = matchTags(tags, path)
-            #print(matched_tags)
-            #tryMatch(matched_tags, path)
             unsatisfied = False
+
     input('Press enter to confirm tags.')
     setTags(matched_tags, no_disc)
     print('Finished.')

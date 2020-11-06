@@ -24,7 +24,7 @@ class Convert():
 
         self.convertWav()
         self.moveToMusic()
-        flaclist = self.findFlacs()
+        flaclist = [audio_metadata.load(path) for path in self.find('flac')]
         for flac in flaclist:
             path, tags = flac['filepath'], flac['tags']
             print(f'Converting {path}...')
@@ -118,10 +118,7 @@ class Convert():
         extensions = ('zip', '7z', 'rar', 'tar')
         all_files = []
         for ext in extensions:
-            pathlist = Path(self.dir).rglob(f'*.{ext}')
-            for path in pathlist:
-                path_in_str = str(path)
-                all_files.append(path_in_str)
+            all_files.extend(self.find(ext))
 
         for file in all_files:
             system(f'open "{file}"')
@@ -129,24 +126,20 @@ class Convert():
 
     # moves m4a files in self.dir to music
     def moveToMusic(self):
-        ext = 'm4a'
-        pathlist = Path(self.dir).rglob(f'*.{ext}')
+        pathlist = self.find('m4a')
         for path in pathlist:
-            path_in_str = str(path)
             system(f'osascript -e \'tell application \"Music\" to add \"{path_in_str}\"\'')
             system(f'rm "{path_in_str}"')
 
 
     def moveToAuto(self, search_path):
-        ext = 'm4a'
-        pathlist = Path(search_path).rglob(f'*.{ext}')
+        pathlist = self.find('m4a')
         for path in pathlist:
-            path = str(path)
             filename = path.split('/')[-1]
             system(f'mv "{path}" "/Volumes/nathanbackup/Library/Automatically Add to Music.localized/{filename}"')
 
 
-    # takes dsf as input
+    # takes cue dict as input
     # moves converted alac to self.outDir
     def convertdsf(self, cue):
         for f in cue:
@@ -177,30 +170,19 @@ class Convert():
         tagger.setTags(matched_tags)
 
 
-    def findCues(self):
-        pathlist = Path(self.dir).rglob('*.cue')
-        cues = []
-        for path in pathlist:
-            path = str(path)
-            cues.extend(self.getInfoFromCue(path))
-        return cues
-
-    def findWav(self):
-        pathlist = Path(self.dir).rglob('*.wav')
-        wavs = []
-        for path in pathlist:
-            path = str(path)
-            wavs.append(path)
-
-        pathlist = Path(self.dir).rglob('*.wv')
-        for path in pathlist:
-            path = str(path)
-            wavs.append(path)
-        return wavs
-
     def convertWav(self):
-        flaclist = self.findWav()
-        for path in flaclist:
+        wav_list = self.find('wav') + self.find('wv')
+        for path in wav_list:
             newpath = path.replace('.wav', '.m4a')
             system(f'ffmpeg -i "{path}" -c:v copy -c:a alac -y "{newpath}"')
+
+    def find(self, ext):
+        pathlist = Path(self.dir).rglob(f'*.{ext}')
+        files = []
+        for path in pathlist:
+            path = str(path)
+            files.append(path)
+        return files
+
+
 

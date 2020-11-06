@@ -1,0 +1,9 @@
+bs4
+audio_metadata
+pathlib
+pydub
+glob
+pyunpack
+requests
+music_tag
+progress

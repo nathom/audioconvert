@@ -112,7 +112,7 @@ def setTags(tags, no_disc):
             except KeyError:
                 f['artist'] = tags['artist']
             f['totaltracks'] = tags['numtracks']
-            f['title'] = track['name']
+            f['tracktitle'] = track['name']
             f['year'] = tags['year']
 
             if nd:

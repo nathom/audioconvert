@@ -233,7 +233,7 @@ def tryMatch(tags, path):
             not_found += 1
             pass
 
-    print(f'{len(not_matched)} not matched.')
+    print(f'{len(not_matched)} files(s) not matched.')
 
 
 # arg: path of directory

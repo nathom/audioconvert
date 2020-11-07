@@ -43,7 +43,7 @@ This will:
 	1. Search the name of the directory in discogs and get the release
  	2. Check if the names of the tracks match the names of the files
 
-<img src="/Users/nathan/audioconvert/demo1.png" style="zoom: 25%;" />
+<img src="demo1.png" style="zoom: 25%;" />
 
 	3. Hit enter to set the tags, type in the album name to search again, or type "n" to get the next result
 

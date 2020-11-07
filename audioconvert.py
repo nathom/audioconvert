@@ -1,45 +1,38 @@
 from os import system, listdir
 import audio_metadata
 from pathlib import Path
-from re import findall
-from pydub import AudioSegment
-from glob import glob
-from time import sleep
-from pyunpack import Archive
-from requests import get
-from bs4 import BeautifulSoup
 
 import tagger
 import cueparser
 
 
-
-# input - flac
-# creates alac in autoAdd
-def convertAlac(path, out_dir, tags=0):
-    filename = path.split('/')[-1].replace('.flac', '.m4a')
-    try:
-        artist, album = tags['artist'][0], tags['album'][0]
-        outfile = f'{out_dir}/{artist}/{album}'
-        system(f'mkdir -p "{outfile}"')
-        outfile = f'{outfile}/{filename}'
-    except:
-        outfile = f'{out_dir}/{filename}'
+# converts flac to alac
+# input: str path of flac, str path of output directory
+# output: None
+def convert_alac(path, out_dir):
+    ext = path.split('.')[-1]
+    filename = path.split('/')[-1]
+    outfile = filename.replace('.' + ext, '.m4a')
 
     # system(f'ffmpeg -i "{path}" -map_metadata -1 -vn -acodec alac -ar {samplerate} -sample_fmt {bitdepth} -map 0:0 -y "{outfile}"')
-    system(f'ffmpeg -i "{path}" -c:v copy -c:a alac -y "{outfile}"')
+    system(f'ffmpeg -i "{path}" -c:v copy -c:a alac -y "{out_dir}/{outfile}"')
 
 
-def moveToAuto(search_path):
+# moves all .m4a files to Automatically Add to Music Folder
+# input: str path to find .m4a files in
+# output: None
+def move_to_auto(search_path, auto_path):
     pathlist = find('m4a', search_path)
     for path in pathlist:
         filename = path.split('/')[-1]
-        system(f'mv "{path}" "/Volumes/nathanbackup/Library/Automatically Add to Music.localized/{filename}"')
+        system(f'mv "{path}" "{auto_path}/{filename}"')
 
 
-# takes cue dict as input
-# moves converted alac to out_dir
-def convertdsf(cue):
+# WORK IN PROGRESS
+# converts dsf files into alac
+# input dict: cue info
+# output None
+def convert_dsf(cue):
     for f in cue:
         artist = f['artist']
         album = f['album']
@@ -68,12 +61,15 @@ def convertdsf(cue):
     tagger.setTags(matched_tags)
 
 
-def convertWav(dir):
+def convert_wav(dir, out_dir):
     wav_list = find('wav', dir) + find('wv', dir)
     for path in wav_list:
-        newpath = path.replace('.wav', '.m4a')
-        system(f'ffmpeg -i "{path}" -c:v copy -c:a alac -y "{newpath}"')
+        filename = path.split('/')[-1].replace('.wav', '.m4a').replace('.wv', '.m4a')
+        system(f'ffmpeg -i "{path}" -c:v copy -c:a alac -y "{out_dir}/{filename}"')
 
+# finds files with a specified extension
+# input str: extension to search for, directory to search in
+# output list: files with specified extension
 def find(ext, dir):
     pathlist = Path(dir).rglob(f'*.{ext}')
     files = []
@@ -82,32 +78,39 @@ def find(ext, dir):
         files.append(path)
     return files
 
-# converts all flacs in dir to alac
-# moves to music
-
-if __name__ == '__main__':
-
-    dir = '/Volumes/nathanbackup/Downloads'
-    out_dir = '/Volumes/nathanbackup/Music/Converted'
-    autoAdd = '/Volumes/nathanbackup/Library/Automatically Add to Music.localized'
-    musicDir = '/Volumes/nathanbackup/Music'
-    '''
-    # find wav files and convert to m4a
-    convertWav(dir)
+# finds and parses all cue files in a dir
+# input str: path to directory
+# output dict: dict of cue info
+def get_cues(dir):
     cues = [cueparser.parse(c) for c in find('cue', dir)]
+    return cues
+
+def split_cues(cues):
     for cue in cues:
         cueparser.split(cue)
 
-    moveToAuto(dir)
-    flaclist = [audio_metadata.load(path) for path in find('flac')]
-    for flac in flaclist:
-        path, tags = flac['filepath'], flac['tags']
-        convertAlac(path, tags)
-    '''
-    moveToAuto(out_dir)
+def convert_all_alac(dir, out_dir):
+    paths = find('flac', dir)
+    for path in paths:
+        convert_alac(path, out_dir)
+
+
+
+
+if __name__ == '__main__':
+    dir = '/Volumes/nathanbackup/Downloads'
+    out_dir = '/Volumes/nathanbackup/Music/Converted'
+    auto_folder = '/Volumes/nathanbackup/Library/Automatically Add to Music.localized'
+    music_dir = '/Volumes/nathanbackup/Music'
+    convert_wav(dir, out_dir)
+
+    cues = get_cues(dir)
+    split_cues(cues)
+
+    move_to_auto(out_dir, auto_folder)
 
     for d in listdir(dir):
-        system(f'mv "{dir}/{d}" "{musicDir}/{d}"')
+        system(f'mv "{dir}/{d}" "{music_dir}/{d}"')
 
 
 

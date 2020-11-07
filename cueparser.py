@@ -9,8 +9,17 @@ import audioconvert
 import music_tag
 from pathlib import Path
 
-# takes cue filepath as input
-# returns data in dict
+# input: str path of .cue file
+# output: dict of cue info
+'''
+{
+'artist': str
+'album': str
+'filepath': str
+'tracklist': list of titles
+'timestamps': list of stamps in seconds; starts at 0, ends at start of last track
+}
+'''
 def parse(cue):
     parent_dir = '/'.join(cue.split('/')[:-1])
     f = open(cue, 'r').read()
@@ -46,7 +55,8 @@ def parse(cue):
     return files
 
 
-# takes time in hh:mm:ss and converts to seconds
+# input: str timestamp in format hh:mm:ss
+# output: int timestamp in seconds
 def format_time(stamp):
     sl = stamp.split(':')
     mins = int(sl[0][0]) * 10 + int(sl[0][1])
@@ -56,6 +66,10 @@ def format_time(stamp):
     return time
 
 
+# converts audio file to flac, splits into tracks
+# renames and tags the new files
+# input: cue dict
+# output: None
 def split(cuesheet):
     for file in cuesheet:
         path = file['filepath']
@@ -105,6 +119,6 @@ def split(cuesheet):
             f.save()
 
         # removes initial large file
-        system(f"rm \"path\"")
+        # system(f"rm \"path\"")
 
 

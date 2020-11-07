@@ -1,49 +1,74 @@
 # audioconvert
 
-Very scrappy code that converts .flac files to ALAC .m4a files and tags music. Made for myself, use at your own discretion.
+**A scrappy library that tags and converts audio files to ALAC m4a. Not written for production/large scale use.**
 
-### Usage of batchConvert
+### Usage of converter
 
 ```python
-from audioconvert import Convert
-c = Convert('/path/to/flacs', '/path/to/move/converted/files')
+import audioconvert as a
 
-# converts everything automatically
-c.batchConvert()
+in_dir = '/path/to/unconverted'
+out_dir = '/path/to/move/converted/to'
+
+# converts and moves wav/wv files
+a.convert_wav(in_dir, out_dir)
+
+# finds cue files and parses them
+cues = a.get_cues(in_dir)
+# splits track in the subfolder that the cue files were in
+# tags them with metadata in the cue file
+# works with anything supported by ffmpeg
+a.split_cues(cues)
+
+# I personally use this with the "Automatically Add to Music" folder on macOS
+# this will move all m4a files to that
+auto_folder = '/path/to/Automatically Add to Music.localized'
+a.move_to_auto(out_dir, auto_folder)
 ```
+
+This does not delete any files, so you may have to use `os.remove` on all the flacs after you're done.
 
 ### Usage of tagger
 
-**Interactive mode**
+This scrapes [discogs](https://www.discogs.com/) for data and tags the files automatically.
 
-Type in terminal
+**Interactive mode** in terminal
 
+```bash
+python3 tagger.py '/path/to/album/directory'
 ```
-python3 tagger.py /path/to/album
-```
 
-**As module**
+This will:
+
+	1. Search the name of the directory in discogs and get the release
+ 	2. Check if the names of the tracks match the names of the files
+
+<img src="/Users/nathan/audioconvert/demo1.png" style="zoom: 25%;" />
+
+	3. Hit enter to set the tags, type in the album name to search again, or type "n" to get the next result
+
+**As a module**
 
 ```python
 import tagger
 
-album_path = '/path/to/album'
+path = '/path/to/abbey_road'
+query = 'abbey road'
+# searches query on discogs
+tags = tagger.searchTags(query)
 
-# returns dict with results from discogs.com
-tags = tagger.searchTags('abbey road', result_item=0)
-# you can optionally check if the file names match the names from discogs
-tagger.tryMatch(tags, album_path)
+# check if the file names match, display the arrows and stuff
+# optional
+tagger.tryMatch(tags, path)
 
-# if you're satisfied with the tags
-# this will return a dict with tags containing the matched path
-# and the number of files not matched
-matched_tags, not_matched = tagger.matchTags(tags, album_path)
+# associates a filepath with each track in tag dict
+matched_tags, not_matched = tagger.matchTags(tags, path)
 
-# if you don't want disc numbers (A1, A2.. D3, D4) and just track numbers (1, 2, 3...)
-no_disc = True
+# set to True if you don't want disc numbers (A1, A2...) and just track numbers (1, 2...)
+no_disc = False
 
-# this sets the tags
-# it will only work with matched tags
+# sets the tags
+# will only work with matched_tags
 tagger.setTags(matched_tags, no_disc)
 ```
 

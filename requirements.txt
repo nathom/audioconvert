@@ -2,7 +2,6 @@ bs4
 audio_metadata
 pathlib
 pydub
-glob
 requests
 music_tag
 progress

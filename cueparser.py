@@ -5,7 +5,7 @@ parses .cue files and splits audio
 from re import findall
 from pydub import AudioSegment
 from os import system
-import audioconvert
+import timeit
 import music_tag
 from pathlib import Path
 
@@ -20,40 +20,57 @@ from pathlib import Path
 'timestamps': list of stamps in seconds; starts at 0, ends at start of last track
 }
 '''
-def parse(cue):
-    parent_dir = '/'.join(cue.split('/')[:-1])
-    f = open(cue, 'r').read()
 
-    in_quotes = [item[1:-1] for item in findall('"[^"]+"', f)]
-    timestamps = findall('\d\d:\d\d:\d\d', f)
-    artist, album = in_quotes[0], in_quotes[1]
-    in_quotes.pop(0)
-    in_quotes.pop(0)
-
-    filepaths = []
-    for item in in_quotes:
-        if '.flac' in item or '.dsf' in item or '.ape' in item:
-            filepaths.append(item)
-
+def parse(cue_path):
+    f = open(cue_path, 'r')
+    parent_dir = '/'.join(cue_path.split('/')[:-1])
+    lines = f.readlines()
+    comments = []
     files = []
-    indices = [in_quotes.index(file) for file in filepaths]
+    album = ''
+    for l in lines:
+        # parse lines that are not indented
+        if l.startswith('REM'):
+            comments.append(l)
+            continue
+        if l.startswith('PERFORMER'):
+            artist = get_in_quotes(l)
+            continue
+        if l.startswith('TITLE') and album == '':
+            album = get_in_quotes(l)
+            continue
 
-    indices.append(len(in_quotes))
+        if l.startswith('FILE'):
+            files.append({
+                'artist': artist,
+                'album': album,
+                'filepath': parent_dir + '/' + get_in_quotes(l),
+                'tracklist': [],
+                'timestamps': []
+            })
+            curr_file = len(files) - 1
 
-    start = 0
-    for i in range(len(filepaths)):
-        titles = in_quotes[indices[i] + 1:indices[i+1]]
-        curr_file = {
-            'artist': artist,
-            'album': album,
-            'filepath': parent_dir + '/' + filepaths[i],
-            'tracklist': titles,
-            'timestamps': [format_time(stamp) for stamp in timestamps[start:start + len(titles)]]
-        }
-        start += len(titles)
-        files.append(curr_file)
+        # parse lines that are indented
+        if 'TITLE' in l:
+            files[curr_file]['tracklist'].append(get_in_quotes(l))
+        elif 'INDEX' in l:
+            # finds timestamp
+            stamp = findall('\d\d:\d\d:\d\d', l)[0]
+            files[curr_file]['timestamps'].append(format_time(stamp))
+        else:
+            continue
+
+
+    # TODO: add support for REM comments
     return files
 
+
+# returns whatever is in double quotes ("") inside the str
+# input str: str to search
+# output str: str in quotes
+def get_in_quotes(s):
+    match = findall('"[^"]+"', s)[0][1:-1]
+    return match
 
 # input: str timestamp in format hh:mm:ss
 # output: int timestamp in seconds
@@ -72,31 +89,26 @@ def format_time(stamp):
 # output: None
 def split(cuesheet):
     for file in cuesheet:
+        tracklist = file['tracklist']
         path = file['filepath']
-        # replace extension with .flac
-        new_path = '.'.join(path.split('.')[:-1]) + '.flac'
-        # convert the large file into a flac
-        system(f"ffmpeg -i \"{path}\" \"{new_path}\"")
+        stamps = file['timestamps']
+        ext = path.split('.')[-1]
         parent_dir = '/'.join(path.split('/')[:-1])
-        ext = 'flac'
-        path = new_path
 
         # loops through titles, splits audio based on timestamp
         # adds metadata for album based on cue
-        song = AudioSegment.from_file(path, ext)
-        for i in range(len(file['tracklist'])):
-            title = file['tracklist'][i]
-            start = file['timestamps'][i] * 1000
+        for i in range(len(tracklist)):
+            start = stamps[i]
 
-            if i is len(file['tracklist']) - 1:
+            if i is len(tracklist) - 1:
                 end = None
             else:
-                end = file['timestamps'][i + 1] * 1000
+                end = stamps[i + 1]
 
-            track = song[start:end]
+            title = tracklist[i]
             form_title = title.replace('/', '|')
-            track_path = f'{parent_dir}/{form_title}.{ext}'
-            track.export(track_path, format=ext)
+            track_path = f'{parent_dir}/{form_title}.m4a'
+            split_file(path, track_path, start, end)
 
             # tags new flac files
             f = music_tag.load_file(track_path)
@@ -105,9 +117,8 @@ def split(cuesheet):
             f['tracknumber'] = i + 1
             f['tracktitle'] = title
 
-            # adds artwork if there is a file named Front.*
             files = []
-            pathlist = Path('/users/nathan/audioconvert').rglob(f'Front*')
+            pathlist = Path(parent_dir).rglob(f'*front*')
             [files.append(f) for f in pathlist]
             if len(files) > 0:
                 art = files[0]
@@ -118,7 +129,19 @@ def split(cuesheet):
 
             f.save()
 
-        # removes initial large file
-        # system(f"rm \"path\"")
+        system(f'rm "{path}"')
+
+
+
+def split_file(in_file, out_file, start, end):
+    if end is None:
+        length = None
+        length_str = ''
+    else:
+        length = end - start
+        length_str = f'-t {length}'
+
+    command = f'ffmpeg -i "{in_file}" -map_metadata -1 -ss {start} {length_str} -vn -acodec alac -map 0:0 -y "{out_file}"'
+    system(command)
 
 

@@ -13,7 +13,7 @@ from progress.bar import IncrementalBar
 # return: dict tags
 # searches discogs releases for query
 # returns first result by default
-def searchTags(query, result_item=0):
+def search_tags(query, result_item=0):
         query_formatted = query.replace(' ', '+')
         base_url = 'https://www.discogs.com'
         url = f'https://www.discogs.com/search/?q={query_formatted}&type=release'
@@ -25,7 +25,6 @@ def searchTags(query, result_item=0):
             page = base_url + findall('href="[^"]+"', result)[0][6:-1]
             r = get(page)
             r.encoding = 'utf-8'
-            #print(r.content)
 
             # gets the included json on the top of discogs page source
             start = '<script type="application\/ld\+json" id="release_schema">'
@@ -44,18 +43,14 @@ def searchTags(query, result_item=0):
             info = json.loads(plain_text)
             for track in info['tracks']:
                 track['name'] = unescape(track['name'])
-            #print(info)
         except:
-            # if there are no results
             return 0
 
-        #print(info)
         release = info['releaseOf']
         tracks = info['tracks']
         labels = [label['name'] for label in info['recordLabel']]
         alph = list(ascii_uppercase)
         track_pos = [(alph.index(pos[1:-1][0]) + 1, int(pos[1:-1][1:])) for pos in findall('"[A-Z]\d\d?"', r.text)]
-        #print(track_pos)
 
         format = lambda strTime: (int(strTime[2]) * 3600 + int(strTime[4:6].replace('0', '', 1)) * 60 + int(strTime[7:9].replace('0', '', 1)))
 
@@ -85,7 +80,7 @@ def searchTags(query, result_item=0):
 # sets the tags
 # param: tag dict with filepath
 # return: None
-def setTags(tags, no_disc):
+def set_tags(tags, no_disc):
     nd = no_disc
     if not nd:
         try:
@@ -145,7 +140,8 @@ def setTags(tags, no_disc):
 # param dir_path: path of directory to search
 # return: dict tags with 'path' key
 # return: list of files not matched
-def matchTags(mod_tags, dir_path):
+def match_tags(mod_tags, dir_path):
+
     getFilename = lambda path: path.split('/')[-1]
     files = listdir(dir_path)
     ext = lambda path: path.split('.')[-1]
@@ -155,7 +151,6 @@ def matchTags(mod_tags, dir_path):
 
     files.sort()
     sorted_paths = []
-    #print(files)
     for track in mod_tags['tracklist']:
         for filename in files:
             keywords = findall("(?i)\w+[']?\w", track['name'])
@@ -210,9 +205,9 @@ def matches(word, name):
         return False
 
 # displays which items have been matched, which have not
-def tryMatch(tags, path):
+def try_match(tags, path):
     getFilename = lambda path: path.split('/')[-1]
-    matched_tags, not_matched = matchTags(tags, path)
+    matched_tags, not_matched = match_tags(tags, path)
     not_found = 0
     album = matched_tags['album']
     artist = ''
@@ -253,9 +248,9 @@ if __name__ == "__main__":
     filename = getFilename(path)
     query = ' '.join(findall('\w+', filename))
     history = query
-    tags = searchTags(query)
+    tags = search_tags(query)
     if tags != 0:
-        tryMatch(tags, path)
+        try_match(tags, path)
     else:
         print('Matches could not automatically be found.')
         pass
@@ -265,26 +260,26 @@ if __name__ == "__main__":
         query = input('Press enter to continue. Type \'n\' to get next result. Type anything else to manual search.\n')
         if query == 'n':
             item += 1
-            tags = searchTags(history, result_item=item)
+            tags = search_tags(history, result_item=item)
             if tags != 0:
-                tryMatch(tags, path)
+                try_match(tags, path)
             else:
                 print('Matches could not automatically be found.')
                 pass
         elif query != '':
-            tags = searchTags(query)
+            tags = search_tags(query)
 
             if tags != 0:
-                tryMatch(tags, path)
+                try_match(tags, path)
             else:
                 print('Matches could not automatically be found.')
                 pass
         else:
-            matched_tags, not_matched = matchTags(tags, path)
+            matched_tags, not_matched = match_tags(tags, path)
             unsatisfied = False
 
     input('Press enter to confirm tags.')
-    setTags(matched_tags, no_disc)
+    set_tags(matched_tags, no_disc)
     print('Finished.')
 
 

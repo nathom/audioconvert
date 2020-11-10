@@ -9,10 +9,13 @@ import cueparser
 # converts flac to alac
 # input: str path of flac, str path of output directory
 # output: None
-def convert_alac(path):
+def convert_alac(path, delete_original=True):
     ext = path.split('.')[-1]
     outfile = path.replace('.' + ext, '.m4a')
-    system(f'ffmpeg -i "{path}" -vn -c:v copy -c:a alac -y "{outfile}"')
+    command = f'ffmpeg -i "{path}" -vn -c:v copy -c:a alac -y "{outfile}"'
+    if delete_original:
+        command += f' && rm "{path}"'
+    system(command)
 
 
 # moves all .m4a files to Automatically Add to Music Folder

@@ -34,7 +34,7 @@
 
    for the interactive mode.
 
-5. Now the program will split cue files, convert everything to ALAC and sort it out in the Music app 😐
+5. Now the program will split cue files, convert everything to ALAC and sort it out in the Music app!
 
 ### Usage of converter
 

@@ -48,11 +48,11 @@ cues = a.get_cues(in_dir)
 # splits files based on cue
 a.split_cues(cues)
 
-# this will convert all .flac, .wav, and .wv files to ALAC
+# this will the remaining audio files to ALAC
 a.convert_all_alac(dir)
 
 auto_folder = '/path/to/Automatically Add to Music.localized'
-a.move_to_auto(out_dir, auto_folder)
+a.move_to_auto(dir, auto_folder)
 ```
 
 This does not delete any files, so you may have to use `os.remove` on all the flacs after you're done.

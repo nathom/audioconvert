@@ -18,64 +18,64 @@ import discogs
 # return: None
 def set_tags(tags, no_disc):
     nd = no_disc
+    # checks if the 'pos' key exists, if not just use track position
     if not nd:
         try:
             tags['tracklist'][-1]['pos']
         except KeyError:
             nd = True
 
+    # list of genres -> str of genres sep by comma
     genre_str = ''
     for g in tags['genre']:
         genre_str += (g + ', ' * ( len(tags['genre']) > 1 and g != tags['genre'][-1] ))
 
-    # system('clear')
+    # progress bar
     bar = IncrementalBar('Setting tags...', max = len(tags['tracklist']))
 
     for track in tags['tracklist']:
-        system('clear')
         bar.next()
         index = tags['tracklist'].index(track)
+        f = music_tag.load_file(track['path'])
+
+        f['album'] = tags['album']
+        # check if track has artist listed, else use album artist
         try:
-            f = music_tag.load_file(track['path'])
-            f['album'] = tags['album']
-            try:
-                f['artist'] = track['artists']
-            except KeyError:
-                f['artist'] = tags['artist']
-            f['totaltracks'] = tags['numtracks']
-            f['tracktitle'] = track['name']
-            f['year'] = tags['year']
-
-            if nd:
-                f['tracknumber'] = index + 1
-
-            else:
-                f['discnumber'] = track['pos'][0]
-                f['tracknumber'] = track['pos'][1]
-
-            f['genre'] = genre_str
-            album = tags['album']
-            title = track['name']
-
-            art = get(tags['image'])
-            img_path = f'/Volumes/nathanbackup/Music/Artwork/{album}.jpg'
-            open(img_path, 'wb').write(art.content)
-
-            with open(img_path, 'rb') as img_in:
-                f['artwork'] = img_in.read()
-
-            f.save()
-
+            f['artist'] = track['artists']
         except KeyError:
-            pass
+            f['artist'] = tags['artist']
+        f['totaltracks'] = tags['numtracks']
+        f['tracktitle'] = track['name']
+        f['year'] = tags['year']
+
+        if nd:
+            f['tracknumber'] = index + 1
+        else:
+            f['discnumber'] = track['pos'][0]
+            f['tracknumber'] = track['pos'][1]
+
+        f['genre'] = genre_str
+
+        # sets the artwork
+        album = tags['album']
+        title = track['name']
+        art = get(tags['image'])
+        img_path = f'/Volumes/nathanbackup/Music/Artwork/{album}.jpg'
+        open(img_path, 'wb').write(art.content)
+
+        with open(img_path, 'rb') as img_in:
+            f['artwork'] = img_in.read()
+
+        f.save()
+
     bar.finish()
 
 
 # matches tags with filepaths
 # param tags: dict tags
 # param dir_path: path of directory to search
-# return: dict tags with 'path' key
-# return: list of files not matched
+# return tuple: (dict: tags with 'path' key, list: files not matched)
+# TODO: improve matching algorithm
 def match_tags(mod_tags, dir_path):
 
     getFilename = lambda path: path.split('/')[-1]
@@ -165,59 +165,6 @@ def try_match(tags, path):
             pass
 
     print(f'{len(not_matched)} files(s) not matched.')
-
-
-# arg: path of directory
-# searches directory name as query
-# asks for manual search
-# sets tags
-
-if __name__ == "__main__":
-    path = argv[1]
-    try:
-        no_disc = (argv[2] == '-n')
-    except:
-        no_disc = False
-
-    getFilename = lambda path: path.split('/')[-1]
-
-    filename = getFilename(path)
-    query = ' '.join(findall('\w+', filename))
-    history = query
-    tags = discogs.search_album(query)
-    if tags != 0:
-        try_match(tags, path)
-    else:
-        print('Matches could not automatically be found.')
-        pass
-    item = 0
-    unsatisfied = True
-    while unsatisfied:
-        query = input('Press enter to continue. Type \'n\' to get next result. Type anything else to manual search.\n')
-        if query == 'n':
-            item += 1
-            tags = discogs.search_album(history, result_item=item)
-            if tags != 0:
-                try_match(tags, path)
-            else:
-                print('Matches could not automatically be found.')
-                pass
-        elif query != '':
-            tags = discogs.search_album(query)
-
-            if tags != 0:
-                try_match(tags, path)
-            else:
-                print('Matches could not automatically be found.')
-                pass
-        else:
-            matched_tags, not_matched = match_tags(tags, path)
-            unsatisfied = False
-
-    input('Press enter to confirm tags.')
-    set_tags(matched_tags, no_disc)
-    print('Finished.')
-
 
 
 

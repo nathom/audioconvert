@@ -50,12 +50,16 @@ def search_album(query, result_item=0):
 
     format = lambda strTime: (int(strTime[2]) * 3600 + int(strTime[4:6].replace('0', '', 1)) * 60 + int(strTime[7:9].replace('0', '', 1)))
 
+    # TODO: make this more efficient/readable
     if len(track_pos) == len(tracks) and len(artists) == len(tracks):
         tracklist = [{'name': tracks[i]['name'].replace('&amp;', '&'), 'duration': format(tracks[i]['duration']), 'pos':track_pos[i], 'artists': artists[i]} for i in range(len(tracks))]
+
     elif len(track_pos) == len(tracks):
         tracklist = [{'name': tracks[i]['name'].replace('&amp;', '&'), 'duration': format(tracks[i]['duration']), 'pos':track_pos[i]} for i in range(len(tracks))]
+
     else:
         tracklist = [{'name': tracks[i]['name'].replace('&amp;', '&'), 'duration': format(tracks[i]['duration'])} for i in range(len(tracks))]
+
     if len(info['genre']) > 3:
         genres = info['genre'][:3]
     else:

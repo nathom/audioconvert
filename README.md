@@ -80,11 +80,16 @@ This will:
 
 ```python
 import tagger
+import discogs
+import spotify
 
 path = '/path/to/abbey_road'
 query = 'abbey road'
 # searches query on discogs
-tags = tagger.search_tags(query)
+tags = discogs.search_tags(query)
+# searches spotify
+tags = spotify.search_album(query)
+
 
 # check if the file names match, display the arrows and stuff
 # optional

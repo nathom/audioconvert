@@ -1,4 +1,4 @@
-from requests import get
+import requests
 from bs4 import BeautifulSoup
 from re import findall
 import json
@@ -41,9 +41,10 @@ def set_tags(tags, no_disc):
         f['album'] = tags['album']
         # check if track has artist listed, else use album artist
         try:
-            f['artist'] = track['artists']
+            f['artist'] = track['artist']
         except KeyError:
             f['artist'] = tags['artist']
+
         f['totaltracks'] = tags['numtracks']
         f['tracktitle'] = track['name']
         f['year'] = tags['year']
@@ -59,7 +60,7 @@ def set_tags(tags, no_disc):
         # sets the artwork
         album = tags['album']
         title = track['name']
-        art = get(tags['image'])
+        art = requests.get(tags['image'])
         img_path = f'/Volumes/nathanbackup/Music/Artwork/{album}.jpg'
         open(img_path, 'wb').write(art.content)
 
@@ -170,9 +171,80 @@ def try_match(tags, path):
 
 
 
+def set_track_tags(track):
+    f = music_tag.load_file(track['path'])
+    parent_dir = '/'.join(track['path'].split('/')[:-1])
+
+    f['album'] = track['album']
+    f['artist'] = track['artist']
+    f['tracktitle'] = track['name']
+    f['year'] = track['year']
+
+    # sets the artwork
+    album = track['album']
+    art = requests.get(track['image'])
+    img_path = f'{parent_dir}/cover.jpg'
+    open(img_path, 'wb').write(art.content)
+
+    with open(img_path, 'rb') as img_in:
+        f['artwork'] = img_in.read()
+
+    f.save()
+
+'''
+given pattern like '$artist - $track.m4a' and a filename 'the beatles - back in the ussr.m4a'
+returns dict = {
+    'artist': 'the beatles',
+    'track': 'back in the ussr'
+    ...
+}
+'''
+def parse_filenames(pattern, name):
+    is_var = False
+    possible_vars = ['$artist', '$track', '$album', '$year', '$id']
+    buffer = []
+    vars = []
+    for char in pattern:
+        if char == '$':
+            is_var = True
+        if is_var:
+            buffer.append(char)
+        joined = ''.join(buffer)
+        if joined in possible_vars:
+            vars.append(joined)
+            is_var = False
+            buffer = []
+
+    # gets everything that isn't a var in the pattern
+    remaining = get_surrounding(pattern, vars)
+    # gets everything that isn't in the surroundings
+    # end up with a list of the values
+    final_values = get_surrounding(name, remaining)
+    info = {}
+    for i in range(len(vars)):
+        print(final_values)
+        info[vars[i][1:]] = final_values[i]
+
+    print(info)
 
 
+# returns list of surroundings of a string given vars
+'''
+example:
+vars = ['foo', 'bar']
+s = 'this isfooand    bar and some other things'
+returns ['this is', 'and   ', ' and some other things']
+'''
+def get_surrounding(s, vars):
+    surr = s.split(vars[0])
+    for item in surr:
+        if vars[1] in item:
+            surr.extend(item.split(vars[1]))
+            surr.remove(item)
+
+    if '' in surr: surr.remove('')
+    return surr
 
 
-
-
+r = get_surrounding('this isfooand   bar and some other things', ['foo', 'bar'])
+print(r)

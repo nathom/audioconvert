@@ -52,7 +52,7 @@ def search_album(query, result_item=0):
 
     # TODO: make this more efficient/readable
     if len(track_pos) == len(tracks) and len(artists) == len(tracks):
-        tracklist = [{'name': tracks[i]['name'].replace('&amp;', '&'), 'duration': format(tracks[i]['duration']), 'pos':track_pos[i], 'artists': artists[i]} for i in range(len(tracks))]
+        tracklist = [{'name': tracks[i]['name'].replace('&amp;', '&'), 'duration': format(tracks[i]['duration']), 'pos':track_pos[i], 'artist': artists[i]} for i in range(len(tracks))]
 
     elif len(track_pos) == len(tracks):
         tracklist = [{'name': tracks[i]['name'].replace('&amp;', '&'), 'duration': format(tracks[i]['duration']), 'pos':track_pos[i]} for i in range(len(tracks))]

@@ -246,5 +246,3 @@ def get_surrounding(s, vars):
     return surr
 
 
-r = get_surrounding('this isfooand   bar and some other things', ['foo', 'bar'])
-print(r)

@@ -76,7 +76,7 @@ For example, a file named `My Way - Frank Sinatra.flac` would have the pattern `
 **Usage**
 
 ```bash
-python3 ~/audioconvert/tag_tracks.py '/path/to/track/directory' '{pattern}'
+python3 ~/audioconvert/tag_tracks.py '/path/to/track/directory' 'pattern'
 ```
 
 It will search spotify for the tracks and tag them.

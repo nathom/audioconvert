@@ -1,8 +1,6 @@
 from os import system, listdir
-import audio_metadata
 from pathlib import Path
 
-import tagger
 import cueparser
 
 

@@ -3,9 +3,7 @@
 parses .cue files and splits audio
 '''
 from re import findall
-from pydub import AudioSegment
 from os import system
-import timeit
 import music_tag
 from pathlib import Path
 

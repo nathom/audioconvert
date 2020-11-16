@@ -1,7 +1,2 @@
-bs4
-audio_metadata
 pathlib
-pydub
-requests
 music_tag
-progress

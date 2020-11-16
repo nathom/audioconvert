@@ -9,7 +9,7 @@ from html import unescape
 # return: dict tags
 # searches discogs releases for query
 # returns first result by default
-def search_album(query, result_item=0):
+def search_album(query, n=0):
     query_formatted = query.replace(' ', '+')
     base_url = 'https://www.discogs.com'
     url = f'https://www.discogs.com/search/?q={query_formatted}&type=release'
@@ -17,7 +17,7 @@ def search_album(query, result_item=0):
     try:
         soup = BeautifulSoup(r.content, features='lxml')
         links = soup.findAll("a", {"class": "search_result_title"})
-        result = str(links[result_item])
+        result = str(links[n])
         page = base_url + findall('href="[^"]+"', result)[0][6:-1]
         r = get(page)
         r.encoding = 'utf-8'

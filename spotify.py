@@ -6,7 +6,11 @@ s = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id='b69d1047383
 def search_album(query, n=0):
     r = s.search(q=f"album:{query}", type='album')
     result = r['albums']['items']
-    uri = result[n]['uri']
+    try:
+        uri = result[n]['uri']
+    except IndexError:
+        return
+
     album_info = s.album(uri)
 
     tracklist = [{
@@ -21,7 +25,7 @@ def search_album(query, n=0):
     album = {
         'source': 'spotify',
         'type': 'album',
-        'title': album_info['name'],
+        'album': album_info['name'],
         'artist': [artist['name'] for artist in album_info['artists']],
         'tracklist': tracklist,
         'numtracks': album_info['total_tracks'],

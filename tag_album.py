@@ -1,52 +1,54 @@
 from tagger import *
-import discogs
 import spotify
+import discogs
+import argparse
 
-if __name__ == "__main__":
-    path = argv[1]
-    try:
-        no_disc = (argv[2] == '-n')
-    except:
-        no_disc = False
-
-    getFilename = lambda path: path.split('/')[-1]
-
-    filename = getFilename(path)
-    query = ' '.join(findall('\w+', filename))
-    history = query
-    tags = discogs.search_album(query)
-    if tags != 0:
+def try_search(query, path, n=0):
+    tags = engine.search_album(query, n=n)
+    if tags:
         try_match(tags, path)
+        return tags
     else:
         print('Matches could not automatically be found.')
         pass
-    item = 0
-    unsatisfied = True
-    while unsatisfied:
-        query = input('Press enter to continue. Type \'n\' to get next result. Type anything else to manual search.\n')
-        if query == 'n':
-            item += 1
-            tags = discogs.search_album(history, result_item=item)
-            if tags != 0:
-                try_match(tags, path)
-            else:
-                print('Matches could not automatically be found.')
-                pass
-        elif query != '':
-            tags = discogs.search_album(query)
 
-            if tags != 0:
-                try_match(tags, path)
-            else:
-                print('Matches could not automatically be found.')
-                pass
-        else:
-            matched_tags, not_matched = match_tags(tags, path)
-            unsatisfied = False
 
-    input('Press enter to confirm tags.')
-    set_tags(matched_tags, no_disc)
-    print('Finished.')
+parser = argparse.ArgumentParser()
+
+parser.add_argument('path', help='path to album')
+parser.add_argument('-s', '--spotify', help='search on spotify', action='store_true')
+parser.add_argument('-d', '--discogs', help='search on discogs', action='store_true')
+args = parser.parse_args()
+
+if args.spotify:
+    engine = spotify
+elif args.discogs:
+    engine = discogs
+else:
+    engine = spotify
+
+path = args.path
+
+filename =  path.split('/')[-1]
+
+query = format(filename)
+tags = try_search(query, path)
+item = 0
+unsatisfied = True
+while unsatisfied:
+    resp = input('Press enter to continue. Type \'n\' to get next result. Type anything else to manual search.\n')
+    if resp == 'n':
+        item += 1
+        tags = try_search(query, path, n=item)
+    elif resp != '':
+        tags = try_search(resp, path, n=item)
+    else:
+        matched_tags, not_matched = match_tags(tags, path)
+        unsatisfied = False
+
+input('Press enter to confirm tags.')
+set_tags(matched_tags)
+print('Finished.')
 
 
 

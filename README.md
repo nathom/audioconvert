@@ -36,72 +36,47 @@
 
 5. Now the program will split cue files, convert everything to ALAC and sort it out in the Music app!
 
-### Usage of converter
 
-```python
-import audioconvert as a
-
-dir = '/path/to/unconverted'
-
-# finds cue files and parses them
-cues = a.get_cues(in_dir)
-# splits files based on cue
-a.split_cues(cues)
-
-# this will the remaining audio files to ALAC
-a.convert_all_alac(dir)
-
-auto_folder = '/path/to/Automatically Add to Music.localized'
-a.move_to_auto(dir, auto_folder)
-```
-
-This does not delete any files, so you may have to use `os.remove` on all the flacs after you're done.
 
 ### Usage of tagger
 
-This scrapes [discogs](https://www.discogs.com/) for data and tags the files automatically.
+This scrapes either [discogs](https://www.discogs.com/) or Spotify for data and tags the files automatically.
 
-**Interactive mode** in terminal
+There are two options—tag an album or tag a bunch of random tracks.
+
+**To tag an album**
 
 ```bash
-python3 tagger.py '/path/to/album/directory'
+python3 ~/audioconvert/tag_album.py '/path/to/album/directory'
+```
+
+You can specify to use discogs or spotify with the `-d` or `-s`  flags, respectively.
+
+```bash
+python3 ~/audioconvert/tag_album.py -d '/path/to/album/directory'
+```
+
+```bash
+python3 ~/audioconvert/tag_album.py -s '/path/to/album/directory'
 ```
 
 This will:
 
-1. Search the name of the directory in discogs and get the release
+1. Search the name of the directory in discogs/spotify and get the release
 2. Check if the names of the tracks match the names of the files
 
 <img src="demo/demo1.png" style="zoom: 25%;" />
 
 3. Hit enter to set the tags, type in the album name to search again, or type "n" to get the next result
 
-**As a module**
+The other use case for tagger is for tagging large numbers of random tracks. To do this you need to use a pattern that tells the program how the files are named.
 
-```python
-import tagger
-import discogs
-import spotify
+For example, a file named `My Way - Frank Sinatra.flac` would have the pattern `$track - $artist.flac`, or a file named `Kesha - Last Goodbye (2012).m4a` would have the pattern `$artist - $track ($year).m4a`. For this to work, all files in the folder have to be named using the same pattern.
 
-path = '/path/to/abbey_road'
-query = 'abbey road'
-# searches query on discogs
-tags = discogs.search_tags(query)
-# searches spotify
-tags = spotify.search_album(query)
+**Usage**
 
-
-# check if the file names match, display the arrows and stuff
-# optional
-tagger.try_match(tags, path)
-
-# associates a filepath with each track in tag dict
-matched_tags, not_matched = tagger.match_tags(tags, path)
-
-# set to True if you don't want disc numbers (A1, A2...) and just track numbers (1, 2...)
-no_disc = False
-
-# sets the tags
-# will only work with matched_tags
-tagger.set_tags(matched_tags, no_disc)
+```bash
+python3 ~/audioconvert/tag_tracks.py '/path/to/track/directory' '{pattern}'
 ```
+
+It will search spotify for the tracks and tag them.

@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-from re import findall
+from re import findall, sub
 import json
 from os import listdir, rename, system
 from sys import argv
@@ -16,7 +16,7 @@ import discogs
 # sets the tags
 # param: tag dict with filepath
 # return: None
-def set_tags(tags, no_disc):
+def set_tags(tags, no_disc=False):
     nd = no_disc
     # checks if the 'pos' key exists, if not just use track position
     if not nd:
@@ -36,7 +36,10 @@ def set_tags(tags, no_disc):
     for track in tags['tracklist']:
         bar.next()
         index = tags['tracklist'].index(track)
-        f = music_tag.load_file(track['path'])
+        try:
+            f = music_tag.load_file(track['path'])
+        except KeyError:
+            continue
 
         f['album'] = tags['album']
         # check if track has artist listed, else use album artist
@@ -134,14 +137,56 @@ def colorize(text, color):
 # case insensitive
 # ignores single quotes
 def matches(word, name):
-    adj_word, adj_name = word.replace("'", ''), name.replace("'", '')
-    r = findall(f'(?i){adj_word}', adj_name)
-    if r != []:
-        return True
+    r = findall(f'(?i){word}', name)
+    if len(r) == 0:
+        return matches_final(word, name)
     else:
-        return False
+        return True
 
-# displays which items have been matched, which have not
+def matches_final(word, name, forgive=1):
+    buffer = []
+    errors = 0
+    name = list(format(name))
+    word = list(format(word))
+
+    not_matched = True
+
+    curr = 0
+    while name[0].lower() != word[0].lower():
+        if len(name) > 1:
+            name.pop(0)
+        else:
+            return False
+
+    # case 1: substitution
+    if len(name) == len(word):
+        for i in range(len(name)):
+            if name[i] != word[i]:
+                errors += 1
+            if errors > forgive:
+                return False
+
+    # case 2: frameshift
+    else:
+        large = name if len(name) > len(word) else word
+        small = name if len(name) < len(word) else word
+        if len(large)//len(small) >= 2:
+            return False
+
+        curr = 0
+        while True:
+            if large[curr] != small[curr]:
+                errors += 1
+                large.pop(curr)
+                curr = 0
+            curr += 1
+            if curr == len(small):
+                break
+            if len(large) == 0 or errors > forgive:
+                return False
+
+    return True
+
 def try_match(tags, path):
     getFilename = lambda path: path.split('/')[-1]
     matched_tags, not_matched = match_tags(tags, path)
@@ -165,7 +210,7 @@ def try_match(tags, path):
             not_found += 1
             pass
 
-    print(f'{len(not_matched)} files(s) not matched.')
+    print(f'{len(not_matched)} file(s) not matched.')
 
 
 
@@ -222,11 +267,9 @@ def parse_filenames(pattern, name):
     final_values = get_surrounding(name, remaining)
     info = {}
     for i in range(len(vars)):
-        print(final_values)
         info[vars[i][1:]] = final_values[i]
 
-    print(info)
-
+    return info
 
 # returns list of surroundings of a string given vars
 '''
@@ -245,4 +288,21 @@ def get_surrounding(s, vars):
     if '' in surr: surr.remove('')
     return surr
 
+# formats the file name for searching
+def format(track):
+    track = track.replace('.m4a', '')
+    track = track.replace(' - ', ' ')
+    track = track.replace("'", '')
+    track = track.replace('"', '')
+    # removes anything inside ()
+    track = sub('\([^\(|^\)]+\)', '', track)
+    # removes anything inside []
+    track = sub('\[[^\[|^\]]+\]', '', track)
+    # removes feat. ...
+    track = sub('[fF]eat[\s\S]+', '', track)
+    # removes anything thats not a letter or number
+    # f = findall('[\w|\d|\ ]+', track)
+    # track = ' '.join(f)
+
+    return track
 

@@ -19,7 +19,7 @@ from pathlib import Path
 }
 '''
 
-def parse(cue_path):
+def parse_cue(cue_path):
     f = open(cue_path, 'r')
     parent_dir = '/'.join(cue_path.split('/')[:-1])
     lines = f.readlines()
@@ -85,7 +85,7 @@ def format_time(stamp):
 # renames and tags the new files
 # input: cue dict
 # output: None
-def split(cuesheet):
+def split_cue(cuesheet):
     for file in cuesheet:
         tracklist = file['tracklist']
         path = file['filepath']

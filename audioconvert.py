@@ -40,15 +40,15 @@ def find(*args, dir):
 # input str: path to directory
 # output dict: dict of cue info
 def get_cues(dir):
-    cues = [cueparser.parse(c) for c in find('cue', dir=dir)]
+    cues = [cueparser.parse_cue(c) for c in find('cue', dir=dir)]
     return cues
 
 def split_cues(cues):
     for cue in cues:
-        cueparser.split(cue)
+        cueparser.split_cue(cue)
 
 def convert_all_alac(dir):
-    paths = find('flac', 'wav', 'wv', dir=dir)
+    paths = find('flac', 'wav', 'wv', 'dsf', dir=dir)
     for path in paths:
         convert_alac(path)
 

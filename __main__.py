@@ -1,4 +1,6 @@
 from audioconvert import *
+from os import listdir, remove
+from shutil import rmtree
 import argparse
 
 dir = '/Volumes/nathanbackup/Downloads'
@@ -14,4 +16,5 @@ if args.split_cues:
 
 convert_all_alac(dir)
 move_to_auto(dir, auto_folder)
+
 

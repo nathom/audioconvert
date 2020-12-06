@@ -1,3 +1,3 @@
-from audioconvert import convert_all_alac as convert_dir
-from audioconvert import convert_alac
-from cueparser import split_cue, parse_cue
+from .converter import convert_all_alac as convert_dir
+from .converter import convert_alac as convert
+from .cueparser import parse_cue, split_cue

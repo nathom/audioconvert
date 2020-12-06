@@ -1,18 +1,18 @@
 from os import system, listdir
+from shutil import move
 from pathlib import Path
 
-import cueparser
-
-
+from . import cueparser
 # converts flac to alac
 # input: str path of flac, str path of output directory
 # output: None
 def convert_alac(path, delete_original=True):
     ext = path.split('.')[-1]
+    path = path.replace('"', '\\"').replace("'", "\\'").replace('`', '\\`')
     outfile = path.replace('.' + ext, '.m4a')
-    command = f'ffmpeg -i "{path}" -vn -c:v copy -c:a alac -y "{outfile}"'
-    if delete_original:
-        command += f' && rm "{path}"'
+    command = f'ffmpeg -loglevel panic -i "{path}" -vn -c:v copy -c:a alac -y "{outfile}"'
+    #if delete_original:
+        #command += f' && rm "{path}"'
     system(command)
 
 
@@ -23,7 +23,7 @@ def move_to_auto(search_path, auto_path):
     pathlist = find('m4a', dir=search_path)
     for path in pathlist:
         filename = path.split('/')[-1]
-        system(f'mv "{path}" "{auto_path}/{filename}"')
+        move(path, f"{auto_path}/{filename}")
 
 
 # finds files with specified extension(s)
@@ -43,6 +43,9 @@ def get_cues(dir):
     cues = [cueparser.parse_cue(c) for c in find('cue', dir=dir)]
     return cues
 
+def splitjoin(s, delim, start=None, end=None):
+    return delim.join(s.split(delim)[start:end])
+
 def split_cues(cues):
     for cue in cues:
         cueparser.split_cue(cue)
@@ -50,6 +53,7 @@ def split_cues(cues):
 def convert_all_alac(dir):
     paths = find('flac', 'wav', 'wv', 'dsf', dir=dir)
     for path in paths:
+        print(f"Converting {path}")
         convert_alac(path)
 
 

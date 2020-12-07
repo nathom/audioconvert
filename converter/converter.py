@@ -3,7 +3,7 @@ import subprocess
 from shutil import move
 from pathlib import Path
 
-import cueparser
+from . import cueparser
 # converts flac to alac
 # input: str path of flac, str path of output directory
 # output: None
@@ -29,19 +29,6 @@ def convert_alac(path, delete_original=True):
         p = subprocess.Popen(conversion_command, stdin=devnull, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     p_out, p_err = p.communicate()
-
-
-
-
-
-# moves all .m4a files to Automatically Add to Music Folder
-# input: str path to find .m4a files in
-# output: None
-def move_to_auto(search_path, auto_path):
-    pathlist = find('m4a', dir=search_path)
-    for path in pathlist:
-        filename = path.split('/')[-1]
-        move(path, f"{auto_path}/{filename}")
 
 
 # finds files with specified extension(s)

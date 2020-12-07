@@ -1,19 +1,37 @@
-from os import system, listdir
+import os
+import subprocess
 from shutil import move
 from pathlib import Path
 
-from . import cueparser
+import cueparser
 # converts flac to alac
 # input: str path of flac, str path of output directory
 # output: None
 def convert_alac(path, delete_original=True):
     ext = path.split('.')[-1]
-    path = path.replace('"', '\\"').replace("'", "\\'").replace('`', '\\`')
     outfile = path.replace('.' + ext, '.m4a')
-    command = f'ffmpeg -loglevel panic -i "{path}" -vn -c:v copy -c:a alac -y "{outfile}"'
-    #if delete_original:
-        #command += f' && rm "{path}"'
-    system(command)
+    conversion_command = [
+        'ffmpeg',
+        '-loglevel',
+        'panic',
+        '-i',
+        path,
+        '-vn',
+        '-c:v',
+        'copy',
+        '-c:a',
+        'alac',
+        '-y',
+        outfile
+    ]
+
+    with open(os.devnull, 'rb') as devnull:
+        p = subprocess.Popen(conversion_command, stdin=devnull, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    p_out, p_err = p.communicate()
+
+
+
 
 
 # moves all .m4a files to Automatically Add to Music Folder
@@ -53,10 +71,11 @@ def split_cues(cues):
 def convert_all_alac(dir):
     paths = find('flac', 'wav', 'wv', 'dsf', dir=dir)
     for path in paths:
-        print(f"Converting {path}")
+        print(f"Converting {path.split('/')[-1]}")
         convert_alac(path)
 
 
 
 
 
+convert_all_alac('/Volumes/nathanbackup/Downloads/Willie Nelson - Shotgun Willie')

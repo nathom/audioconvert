@@ -1,7 +1,10 @@
-from audioconvert import *
 from os import listdir, remove
 from shutil import rmtree
 import argparse
+
+from converter import *
+from meta_validate import validate_dir
+
 
 dir = '/Volumes/nathanbackup/Downloads'
 auto_folder = '/Volumes/nathanbackup/Library/Automatically Add to Music.localized'
@@ -15,6 +18,7 @@ if args.split_cues:
     split_cues(cues)
 
 convert_all_alac(dir)
+validate_dir(dir)
 move_to_auto(dir, auto_folder)
 
 

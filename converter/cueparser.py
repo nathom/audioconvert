@@ -2,8 +2,8 @@
 '''
 parses .cue files and splits audio
 '''
-from re import findall
-from os import system
+import re
+import os
 import music_tag
 from pathlib import Path
 
@@ -18,6 +18,59 @@ from pathlib import Path
 'timestamps': list of stamps in seconds; starts at 0, ends at start of last track
 }
 '''
+
+class Cue(object):
+    def __init__(self, path):
+        self.path = path
+        self.info = []
+        parent_dir = '/'.join(self.path.split('/')[:-1])
+        comments = []
+        album = ''
+        lines = open(self.path).readlines()
+
+        for l in lines:
+            if l.startswith('REM'):
+            comments.append(l)
+            continue
+        elif l.startswith('PERFORMER'):
+            artist = _get_in_quotes(l)
+            continue
+        elif l.startswith('TITLE') and album == '':
+            album = _get_in_quotes(l)
+            continue
+
+        elif l.startswith('FILE'):
+            info.append({
+                'artist': artist,
+                'album': album,
+                'filepath': parent_dir + '/' + _get_in_quotes(l),
+                'tracklist': [],
+                'timestamps': []
+            })
+            curr_file = len(files) - 1
+
+        # parse lines that are indented
+        l = l.strip()
+        if l.startswith('TITLE'):
+            files[curr_file]['tracklist'].append(_get_in_quotes(l))
+        elif l.startswith('INDEX'):
+            stamp = findall('\d\d:\d\d:\d\d', l)[0]
+            files[curr_file]['timestamps'].append(format_time(stamp))
+        else:
+            continue
+
+
+
+    def _get_in_quotes(s):
+        match = re.findall('"([^"]+)"', s)[0]
+        return match
+
+
+
+
+
+
+
 
 def parse_cue(cue_path):
     f = open(cue_path, 'r')
@@ -67,7 +120,7 @@ def parse_cue(cue_path):
 # input str: str to search
 # output str: str in quotes
 def get_in_quotes(s):
-    match = findall('"[^"]+"', s)[0][1:-1]
+    match = findall('"([^"]+)"', s)[0]
     return match
 
 # input: str timestamp in format hh:mm:ss

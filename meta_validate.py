@@ -1,7 +1,6 @@
 import re
 from pathlib import Path
 import os
-import glob
 
 import music_tag
 
@@ -34,4 +33,3 @@ def validate_dir(downloads_path):
 
 
 
-validate_dir('/volumes/nathanbackup/downloads')

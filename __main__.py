@@ -21,4 +21,8 @@ convert_all_alac(dir)
 validate_dir(dir)
 move_to_auto(dir, auto_folder)
 
+#deletes the flac files
+for file in listdir(dir):
+    rmtree(dir + '/' + file)
+
 

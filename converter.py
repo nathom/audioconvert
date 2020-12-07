@@ -78,4 +78,3 @@ def convert_all_alac(dir):
 
 
 
-convert_all_alac('/Volumes/nathanbackup/Downloads/Willie Nelson - Shotgun Willie')

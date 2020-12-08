@@ -5,6 +5,7 @@ parses .cue files and splits audio
 import re
 import os
 import music_tag
+import subprocess
 from pathlib import Path
 
 # input: str path of .cue file
@@ -18,6 +19,7 @@ from pathlib import Path
 'timestamps': list of stamps in seconds; starts at 0, ends at start of last track
 }
 '''
+# TODO: add tagging capabilities
 
 class Cue(object):
     def __init__(self, path):
@@ -40,6 +42,7 @@ class Cue(object):
         lines = open(self.filepath).readlines()
 
         for l in lines:
+            l = l.strip()
             if l.startswith('REM'):
                 m = re.match(r'REM (\w+) "?([\w\d-]+)"?', l).groups()
                 self.set(m[0].lower(), m[1])
@@ -54,9 +57,7 @@ class Cue(object):
             elif l.startswith('FILE'):
                 curr_file = self.parent_dir + '/' + self._get_in_quotes(l)
 
-            # parse lines that are indented
-            l = l.strip()
-            if l.startswith('TRACK'):
+            elif l.startswith('TRACK'):
                 tracknum = self._toint(re.findall('\d\d', l)[0])
                 self.tracklist.append(Track(pos=(1, tracknum)))
             elif l.startswith('TITLE'):
@@ -68,18 +69,19 @@ class Cue(object):
                 self.tracklist[-1].timestamp = self._format_time(stamp)
 
             elif l.startswith('PERFORMER'):
-                artist = re.findall(f'PERFORMER "([^"]+)"').groups()
+                artist = re.match(f'PERFORMER "([^"]+)"', l).groups()
                 self.tracklist[-1].artist = artist[0]
             else:
                 continue
+        self._get_stamps()
 
     def split(self):
-        counter = 0
+        i = 0
+        print(zip(self.tracklist))
         for track in self.tracklist:
-            next_stamp = self.tracklist[counter+1].timestamp if counter < len(tracklist)-1 else None
-            self.tracklist.filepath_converted = f'{self.parent_dir}/{counter}. {track.name}.m4a'
-            self._split_file(track.filepath, self.tracklist.filepath_converted, track.timestamp, next_stamp)
-            counter += 1
+            self.tracklist[i].filepath_converted = f'{self.parent_dir}/{i+1}. {track.name}.m4a'
+            self._split_file(track.filepath, self.tracklist[i].filepath_converted, track.start, track.length)
+            i += 1
 
 
     def __getitem__(self, key):
@@ -129,18 +131,19 @@ class Cue(object):
             raise AttributeError('Invalid key')
 
     # TODO: add remove function
-    def _split_file(self, in_file, out_file, start, end):
-        command = ['ffmpeg', '-i', in_file, '-map_metadata', '-1', '-ss', start, '-t', length, '-vn', '-acodec', 'alac', '-map', '0:0', '-y', out_file]
+    def _split_file(self, in_file, out_file, start, length):
+        print(in_file, out_file, start, length)
+        command = ['ffmpeg', '-i', in_file, '-map_metadata', '-1', '-ss', str(start), '-vn', '-acodec', 'alac', '-map', '0:0', '-y', out_file]
 
-        if end:
-            length = end - start
-            command.insert(6, '-t')
-            command.insert(7, length)
+        if length:
+            command.insert(7, '-t')
+            command.insert(8, str(length))
 
+        print(command)
         with open(os.devnull, 'rb') as devnull:
             p = subprocess.Popen(command, stdin=devnull, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
         p_out, p_err = p.communicate()
+
 
 
     # input: str timestamp in format hh:mm:ss
@@ -166,6 +169,20 @@ class Cue(object):
         match = re.findall('"([^"]+)"', s)[0]
         return match
 
+    def _get_stamps(self):
+        stamps = [track.timestamp for track in self.tracklist]
+        stamps_shifted = stamps.copy()
+        stamps_shifted.pop(0)
+        stamps_shifted.append(None)
+        pairs = list(zip(stamps, stamps_shifted))
+        pars = [(0.0, None) if t == (0.0, 0.0) else t for t in pairs]
+        i = 0
+        for track in self.tracklist:
+            track.start = pairs[i][0]
+            track.end = pairs[i][1]
+            i += 1
+
+
 
 
 
@@ -173,14 +190,27 @@ class Track(object):
     def __init__(self, **kwargs):
         self.filepath = kwargs['filepath'] if 'filepath' in kwargs else None
         self.filepath_converted = kwargs['filepath_converted'] if 'filepath_converted' in kwargs else None
+
+        self.name = kwargs['name'] if 'name' in kwargs else None
         self.artist = kwargs['artist'] if 'artist' in kwargs else None
         self.album = kwargs['album'] if 'album' in kwargs else None
-        self.timestamp = kwargs['timestamp'] if 'timestamp' in kwargs else None
         self.pos = kwargs['pos'] if 'pos' in kwargs else None
-        self.name = kwargs['name'] if 'name' in kwargs else None
+
+        self.start = kwargs['start'] if 'start' in kwargs else None
+        self.end = kwargs['end'] if 'end' in kwargs else None
+
+    @property
+    def length(self):
+        if self.end:
+            return self.end - self.start
+        else:
+            return None
+
 
     def __str__(self):
-        return f'{self.pos}. {self.name}'
+        return f'{self.pos}. {self.name} ({self.timestamp}) {self.length}'
+    def __len__(self):
+        return self.length
 
 
 
@@ -249,5 +279,6 @@ def split_file(in_file, out_file, start, end):
     system(command)
 """
 
-c = Cue('/Volumes/nathanbackup/Music/MY DYING BRIDE/1991 Symphonaire Infernus Et Spera Empyrium [VILELP560]/My Dying Bride 1991 Symphonaire Infernus Et Spera Empyrium [VILELP560].cue')
+c = Cue('/Volumes/nathanbackup/Downloads/Santa Esmeralda - Another Cha-Cha 1979/Santa Esmeralda - Another Cha-Cha.cue')
 print(c)
+c.split()

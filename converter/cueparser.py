@@ -21,50 +21,131 @@ from pathlib import Path
 
 class Cue(object):
     def __init__(self, path):
-        self.path = path
-        self._info = {
-            'album': None,
-            'albumartist': None,
-            'files': [],
-        }
-        parent_dir = '/'.join(self.path.split('/')[:-1])
-        lines = open(self.path).readlines()
+        self.filepath = path
+        self.parent_dir = '/'.join(self.filepath.split('/')[:-1])
+
+        self.files = []
+        self.tracklist = []
+
+        self.album = None
+        self.albumartist = None
+        self.genre = None
+        self.composer = None
+        self.url = None
+        self.date = None
+        self.label = None
+        self.comment = None
+        self.year = None
+
+        lines = open(self.filepath).readlines()
 
         for l in lines:
             if l.startswith('REM'):
                 m = re.match(r'REM (\w+) "?([\w\d-]+)"?', l).groups()
-                self._info[m[0].lower()] = m[1]
+                self.set(m[0].lower(), m[1])
                 continue
             elif l.startswith('PERFORMER'):
-                self._info['albumartist'] = get_in_quotes(l)
+                self.albumartist = self._get_in_quotes(l)
                 continue
-            elif l.startswith('TITLE') and self._info['album'] is None:
-                self._info['album'] = get_in_quotes(l)
+            elif l.startswith('TITLE') and self.album is None:
+                self.album = self._get_in_quotes(l)
                 continue
 
             elif l.startswith('FILE'):
-                self._info['files'].append({
-                    'artist': self._info['albumartist'],
-                    'album': self._info['album'],
-                    'filepath': parent_dir + '/' + get_in_quotes(l),
-                    'tracklist': [],
-                    'timestamps': []
-                })
-                curr_file = len(self._info['files']) - 1
+                curr_file = self.parent_dir + '/' + self._get_in_quotes(l)
 
             # parse lines that are indented
             l = l.strip()
-            if l.startswith('TITLE'):
-                self._info['files'][curr_file]['tracklist'].append(get_in_quotes(l))
+            if l.startswith('TRACK'):
+                tracknum = self._toint(re.findall('\d\d', l)[0])
+                self.tracklist.append(Track(pos=(1, tracknum)))
+            elif l.startswith('TITLE'):
+                self.tracklist[-1].name = self._get_in_quotes(l)
+                self.tracklist[-1].album = self.album
+                self.tracklist[-1].filepath = curr_file
             elif l.startswith('INDEX'):
                 stamp = re.findall('\d\d:\d\d:\d\d', l)[0]
-                self._info['files'][curr_file]['timestamps'].append(format_time(stamp))
+                self.tracklist[-1].timestamp = self._format_time(stamp)
+
+            elif l.startswith('PERFORMER'):
+                artist = re.findall(f'PERFORMER "([^"]+)"').groups()
+                self.tracklist[-1].artist = artist[0]
             else:
                 continue
 
+    def split(self):
+        counter = 0
+        for track in self.tracklist:
+            next_stamp = self.tracklist[counter+1].timestamp if counter < len(tracklist)-1 else None
+            self.tracklist.filepath_converted = f'{self.parent_dir}/{counter}. {track.name}.m4a'
+            self._split_file(track.filepath, self.tracklist.filepath_converted, track.timestamp, next_stamp)
+            counter += 1
+
+
+    def __getitem__(self, key):
+        return self.get(self._format_query(key))
+
+    def __setitem__(self, key, val):
+        self.set(self._format_query(key), val)
+
+    def __str__(self):
+        tracks =  '\n'.join(list(map(str, self.tracklist)))
+        return f'{self.albumartist} - {self.album}\n{tracks}'
+
+
+    def get(self, key):
+        if key == 'tracklist':
+            tracklist = []
+            stamps = []
+            for file in self.files:
+                tracklist.extend(file['tracklist'])
+                stamps.extend(file['timestamps'])
+            return list(zip(tracklist, stamps))
+        elif key in ['artist', 'albumartist']:
+            return self.albumartist
+        elif key in ['filepath', 'filepaths']:
+            return [file['filepath for file in self.files']]
+        else:
+            return self._info[key]
+
+    def set(self, key, val):
+        if key in ['path', 'filepath']:
+            self.filepath = val
+        elif key == 'album':
+            self.album = val
+        elif key == 'genre':
+            self.genre = val
+        elif key == 'albumartist':
+            self.albumartist = val
+        elif key == 'date':
+            self.date = val
+        elif key == 'year':
+            self.year = val
+        elif key == 'label':
+            self.label = val
+        elif key == 'comment':
+            self.comment = val
+        else:
+            raise AttributeError('Invalid key')
+
+    # TODO: add remove function
+    def _split_file(self, in_file, out_file, start, end):
+        command = ['ffmpeg', '-i', in_file, '-map_metadata', '-1', '-ss', start, '-t', length, '-vn', '-acodec', 'alac', '-map', '0:0', '-y', out_file]
+
+        if end:
+            length = end - start
+            command.insert(6, '-t')
+            command.insert(7, length)
+
+        with open(os.devnull, 'rb') as devnull:
+            p = subprocess.Popen(command, stdin=devnull, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        p_out, p_err = p.communicate()
+
+
     # input: str timestamp in format hh:mm:ss
     # output: int timestamp in seconds
-    def format_time(stamp):
+    def _format_time(self, stamp):
         sl = stamp.split(':')
         mins = int(sl[0][0]) * 10 + int(sl[0][1])
         sec = int(sl[1][0]) * 10 + int(sl[1][1])
@@ -72,125 +153,45 @@ class Cue(object):
         time = 60*mins + sec + ms / 100
         return time
 
-    def format_query(self, q):
+    def _toint(self, s):
+        return int(s[0])*10 + int(s[1])
+
+
+    def _format_query(self, q):
         return ''.join(re.findall('\w', q)).lower()
 
-    def get(self, key):
-        if key == 'tracklist':
-            tracklist = []
-            stamps = []
-            for file in self._info['files']:
-                tracklist.extend(file['tracklist'])
-                stamps.extend(file['timestamps'])
-            return list(zip(tracklist, stamps))
-        elif key in ['artist', 'albumartist']:
-            return self._info['albumartist']
-        elif key in ['path', 'filepath', 'filepaths']:
-            return [file['filepath'] for file in self._info['files']]
-        else:
-            return self._info[key]
-
-    # TODO: add set function
-    # TODO: add remove function
 
 
-
-
-
-    def get_in_quotes(s):
+    def _get_in_quotes(self, s):
         match = re.findall('"([^"]+)"', s)[0]
         return match
 
-    def __getitem__(self, key):
-        return self.get(self.format_query(key))
 
-    def __setitem__(self, key, val):
-        self.set(self.format_query(key), val)
+
+
+class Track(object):
+    def __init__(self, **kwargs):
+        self.filepath = kwargs['filepath'] if 'filepath' in kwargs else None
+        self.filepath_converted = kwargs['filepath_converted'] if 'filepath_converted' in kwargs else None
+        self.artist = kwargs['artist'] if 'artist' in kwargs else None
+        self.album = kwargs['album'] if 'album' in kwargs else None
+        self.timestamp = kwargs['timestamp'] if 'timestamp' in kwargs else None
+        self.pos = kwargs['pos'] if 'pos' in kwargs else None
+        self.name = kwargs['name'] if 'name' in kwargs else None
 
     def __str__(self):
-        tracklist = []
-        for file in self._info['files']:
-            tracklist.extend(file['tracklist'])
-        tracks = '\n'.join(tracklist)
-        s = f'Album: {self.get("album")}\nArtist: {self.get("artist")}\n\nTracks:\n{tracks}'
-        return s
+        return f'{self.pos}. {self.name}'
 
 
 
 
-
-
-
-
-
-
-def parse_cue(cue_path):
-    f = open(cue_path, 'r')
-    parent_dir = '/'.join(cue_path.split('/')[:-1])
-    lines = f.readlines()
-    comments = []
-    files = []
-    album = ''
-    for l in lines:
-        # parse lines that are not indented
-        if l.startswith('REM'):
-            comments.append(l)
-            continue
-        if l.startswith('PERFORMER'):
-            artist = get_in_quotes(l)
-            continue
-        if l.startswith('TITLE') and album == '':
-            album = get_in_quotes(l)
-            continue
-
-        if l.startswith('FILE'):
-            files.append({
-                'artist': artist,
-                'album': album,
-                'filepath': parent_dir + '/' + get_in_quotes(l),
-                'tracklist': [],
-                'timestamps': []
-            })
-            curr_file = len(files) - 1
-
-        # parse lines that are indented
-        if 'TITLE' in l:
-            files[curr_file]['tracklist'].append(get_in_quotes(l))
-        elif 'INDEX' in l:
-            # finds timestamp
-            stamp = re.findall('\d\d:\d\d:\d\d', l)[0]
-            files[curr_file]['timestamps'].append(format_time(stamp))
-        else:
-            continue
-
-
-    # TODO: add support for REM comments
-    return files
-
-
-# returns whatever is in double quotes ("") inside the str
-# input str: str to search
-# output str: str in quotes
-def get_in_quotes(s):
-    match = re.findall('"([^"]+)"', s)[0]
-    return match
-
-# input: str timestamp in format hh:mm:ss
-# output: int timestamp in seconds
-def format_time(stamp):
-    sl = stamp.split(':')
-    mins = int(sl[0][0]) * 10 + int(sl[0][1])
-    sec = int(sl[1][0]) * 10 + int(sl[1][1])
-    ms = int(sl[2][0]) * 10 + int(sl[2][1])
-    time = 60*mins + sec + ms / 100
-    return time
 
 
 # converts audio file to flac, splits into tracks
 # renames and tags the new files
 # input: cue dict
 # output: None
-def split_cue(cuesheet):
+"""def split_cue(cuesheet):
     for file in cuesheet:
         tracklist = file['tracklist']
         path = file['filepath']
@@ -215,10 +216,10 @@ def split_cue(cuesheet):
 
             # tags new flac files
             f = music_tag.load_file(track_path)
-            f['album'] = file['album']
-            f['artist'] = file['artist']
-            f['tracknumber'] = i + 1
-            f['tracktitle'] = title
+            f.album = file['album']
+            f.artist = file['artist']
+            f['tracknumber = i + 1
+            f['tracktitle = title
 
             files = []
             pathlist = Path(parent_dir).rglob(f'*front*')
@@ -246,4 +247,7 @@ def split_file(in_file, out_file, start, end):
 
     command = f'ffmpeg -i "{in_file}" -map_metadata -1 -ss {start} {length_str} -vn -acodec alac -map 0:0 -y "{out_file}"'
     system(command)
+"""
 
+c = Cue('/Volumes/nathanbackup/Music/MY DYING BRIDE/1991 Symphonaire Infernus Et Spera Empyrium [VILELP560]/My Dying Bride 1991 Symphonaire Infernus Et Spera Empyrium [VILELP560].cue')
+print(c)

@@ -6,6 +6,9 @@ import re
 import os
 import music_tag
 import subprocess
+import json
+from mutagen.flac import FLAC, Picture
+from mutagen.mp4 import MP4
 from pathlib import Path
 
 # input: str path of .cue file
@@ -22,22 +25,48 @@ from pathlib import Path
 # TODO: add tagging capabilities
 
 class Cue(object):
+    _mp4_keys = {
+        'title': r'\xa9nam',
+        'artist': r'\xa9ART',
+        'album': r'\xa9alb',
+        'albumartist': r'aART',
+        'composer': r'\xa9day',
+        'year': r'\xa9day',
+        'comment': r'\xa9cmt',
+        'description': 'desc',
+        'purchase_date': 'purd',
+        'grouping': r'\xa9grp',
+        'genre': r'\xa9gen',
+        'lyrics': r'\xa9lyr',
+        'encoder': r'\xa9too',
+        'copyright': 'cprt',
+        'compilation': 'cpil',
+        'cover': 'covr',
+        'tracknumber': 'trkn',
+        'discnumber': 'disk'
+    }
     def __init__(self, path):
         self.filepath = path
         self.parent_dir = '/'.join(self.filepath.split('/')[:-1])
 
-        self.files = []
         self.tracklist = []
 
         self.album = None
         self.albumartist = None
-        self.genre = None
-        self.composer = None
-        self.url = None
-        self.date = None
-        self.label = None
         self.comment = None
+        self.composer = None
+        self.copyright = None
+        self.disctotal = None
+        self.date = None
+        self.genre = None
+        self.isrc = None
+        self.label = None
+        self.performer = None
+        self.url = None
+        self.upc = None
         self.year = None
+        self.discid = None
+
 
         lines = open(self.filepath).readlines()
 
@@ -46,13 +75,10 @@ class Cue(object):
             if l.startswith('REM'):
                 m = re.match(r'REM (\w+) "?([\w\d-]+)"?', l).groups()
                 self.set(m[0].lower(), m[1])
-                continue
-            elif l.startswith('PERFORMER'):
+            elif l.startswith('PERFORMER') and self.albumartist is None:
                 self.albumartist = self._get_in_quotes(l)
-                continue
             elif l.startswith('TITLE') and self.album is None:
                 self.album = self._get_in_quotes(l)
-                continue
 
             elif l.startswith('FILE'):
                 curr_file = self.parent_dir + '/' + self._get_in_quotes(l)
@@ -72,66 +98,75 @@ class Cue(object):
                 artist = re.match(f'PERFORMER "([^"]+)"', l).groups()
                 self.tracklist[-1].artist = artist[0]
             else:
-                continue
+                raise NotImplementedError(f'"{l.split(" ")[0]}" tag not implemented')
         self._get_stamps()
 
     def split(self):
         i = 0
         print(zip(self.tracklist))
         for track in self.tracklist:
-            self.tracklist[i].filepath_converted = f'{self.parent_dir}/{i+1}. {track.name}.m4a'
-            self._split_file(track.filepath, self.tracklist[i].filepath_converted, track.start, track.length)
+            conv_path = self.tracklist[i].filepath_converted = f'{self.parent_dir}/{i+1}. {track.name}.m4a'
+            if not os.path.exists(conv_path):
+                self._split_file(track.filepath, conv_path, track.start, track.length)
+            else:
+                print(f'{track.name} already converted.')
             i += 1
 
+    @property
+    def totaltracks(self):
+        return len(self.tracklist)
 
-    def __getitem__(self, key):
-        return self.get(self._format_query(key))
+    @property
+    def totaldiscs(self):
+        discs = [track.pos[0] for track in self.tracklist]
+        return max(discs)
 
-    def __setitem__(self, key, val):
-        self.set(self._format_query(key), val)
+    def tag_files(self):
+        info = {}
+        for k, v in self.__dict__.items():
+            if k in ['genre', 'albumartist', 'tracktotal', 'disctotal', 'album', 'label', 'copyright', 'url', 'year'] and v is not None:
+                info[k] = v
 
-    def __str__(self):
-        tracks =  '\n'.join(list(map(str, self.tracklist)))
-        return f'{self.albumartist} - {self.album}\n{tracks}'
+        # TODO: properly implement disc numbers
+        tags = [{
+            'title': track.name,
+            'artist': track.artist,
+            'tracknumber': [(track.pos[1], self.totaltracks)],
+            **info
+        } for track in self.tracklist]
+
+        i = 0
+        for track in self.tracklist:
+            audio = MP4(track.filepath_converted)
+            for k, v in tags[i].items():
+                print(k, v)
+                audio[Cue._mp4_keys[k]] = v
+            i += 1
+            print('\n\n')
+            audio.save()
+
+    def test_tag(self):
+        audio = MP4(self.tracklist[0].filepath_converted)
+        audio['trkn'] = [(3, 17)]
+        audio.save()
+
 
 
     def get(self, key):
-        if key == 'tracklist':
-            tracklist = []
-            stamps = []
-            for file in self.files:
-                tracklist.extend(file['tracklist'])
-                stamps.extend(file['timestamps'])
-            return list(zip(tracklist, stamps))
-        elif key in ['artist', 'albumartist']:
-            return self.albumartist
-        elif key in ['filepath', 'filepaths']:
-            return [file['filepath for file in self.files']]
-        else:
-            return self._info[key]
-
-    def set(self, key, val):
-        if key in ['path', 'filepath']:
-            self.filepath = val
-        elif key == 'album':
-            self.album = val
-        elif key == 'genre':
-            self.genre = val
-        elif key == 'albumartist':
-            self.albumartist = val
-        elif key == 'date':
-            self.date = val
-        elif key == 'year':
-            self.year = val
-        elif key == 'label':
-            self.label = val
-        elif key == 'comment':
-            self.comment = val
+        if key in possible_keys:
+            return self.__dict__[key]
         else:
             raise AttributeError('Invalid key')
 
-    # TODO: add remove function
-    def _split_file(self, in_file, out_file, start, length):
+
+    def set(self, key, val):
+        possible_keys = [k for k,v in self.__dict__.items()]
+        if key in possible_keys:
+            self.__dict__[key] = val
+        else:
+            raise AttributeError('Invalid key')
+
+    def _split_file(self, in_file: str, out_file: str, start: float, length: float) -> None:
         print(in_file, out_file, start, length)
         command = ['ffmpeg', '-i', in_file, '-map_metadata', '-1', '-ss', str(start), '-vn', '-acodec', 'alac', '-map', '0:0', '-y', out_file]
 
@@ -148,7 +183,7 @@ class Cue(object):
 
     # input: str timestamp in format hh:mm:ss
     # output: int timestamp in seconds
-    def _format_time(self, stamp):
+    def _format_time(self, stamp: str) -> int:
         sl = stamp.split(':')
         mins = int(sl[0][0]) * 10 + int(sl[0][1])
         sec = int(sl[1][0]) * 10 + int(sl[1][1])
@@ -156,16 +191,16 @@ class Cue(object):
         time = 60*mins + sec + ms / 100
         return time
 
-    def _toint(self, s):
+    def _toint(self, s: str) -> int:
         return int(s[0])*10 + int(s[1])
 
 
-    def _format_query(self, q):
+    def _format_query(self, q: str) -> str:
         return ''.join(re.findall('\w', q)).lower()
 
 
 
-    def _get_in_quotes(self, s):
+    def _get_in_quotes(self, s: str) -> str:
         match = re.findall('"([^"]+)"', s)[0]
         return match
 
@@ -181,6 +216,18 @@ class Cue(object):
             track.start = pairs[i][0]
             track.end = pairs[i][1]
             i += 1
+
+    def __getitem__(self, key):
+        return self.get(self._format_query(key))
+
+    def __setitem__(self, key, val):
+        self.set(self._format_query(key), val)
+
+    def __str__(self):
+        d = self.__dict__
+        d['tracklist'] = list(map(str, d['tracklist']))
+        j = json.dumps(d, indent=3)
+        return j
 
 
 
@@ -201,84 +248,21 @@ class Track(object):
 
     @property
     def length(self):
-        if self.end:
+        if self.end and self.start:
             return self.end - self.start
         else:
             return None
 
 
     def __str__(self):
-        return f'{self.pos}. {self.name} ({self.timestamp}) {self.length}'
+        return f'{self.pos}. {self.name}'
     def __len__(self):
         return self.length
 
 
 
 
-
-
-# converts audio file to flac, splits into tracks
-# renames and tags the new files
-# input: cue dict
-# output: None
-"""def split_cue(cuesheet):
-    for file in cuesheet:
-        tracklist = file['tracklist']
-        path = file['filepath']
-        stamps = file['timestamps']
-        ext = path.split('.')[-1]
-        parent_dir = '/'.join(path.split('/')[:-1])
-
-        # loops through titles, splits audio based on timestamp
-        # adds metadata for album based on cue
-        for i in range(len(tracklist)):
-            start = stamps[i]
-
-            if i is len(tracklist) - 1:
-                end = None
-            else:
-                end = stamps[i + 1]
-
-            title = tracklist[i]
-            form_title = title.replace('/', '|')
-            track_path = f'{parent_dir}/{form_title}.m4a'
-            split_file(path, track_path, start, end)
-
-            # tags new flac files
-            f = music_tag.load_file(track_path)
-            f.album = file['album']
-            f.artist = file['artist']
-            f['tracknumber = i + 1
-            f['tracktitle = title
-
-            files = []
-            pathlist = Path(parent_dir).rglob(f'*front*')
-            [files.append(f) for f in pathlist]
-            if len(files) > 0:
-                art = files[0]
-                with open(art, 'rb') as img_in:
-                        f['artwork'] = img_in.read()
-            else:
-                pass
-
-            f.save()
-
-        system(f'rm "{path}"')
-
-
-
-def split_file(in_file, out_file, start, end):
-    if end is None:
-        length = None
-        length_str = ''
-    else:
-        length = end - start
-        length_str = f'-t {length}'
-
-    command = f'ffmpeg -i "{in_file}" -map_metadata -1 -ss {start} {length_str} -vn -acodec alac -map 0:0 -y "{out_file}"'
-    system(command)
-"""
-
-c = Cue('/Volumes/nathanbackup/Downloads/Santa Esmeralda - Another Cha-Cha 1979/Santa Esmeralda - Another Cha-Cha.cue')
-print(c)
+c = Cue('/Volumes/nathanbackup/Downloads/CDA68266 - Mantyjarvi - Choral Music - 2020/Mantyjarvi - Choral Music copy.cue')
 c.split()
+#c.test_tag()
+c.tag_files()

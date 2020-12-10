@@ -1,9 +1,7 @@
-from os import listdir, remove
-from shutil import rmtree, move
-import argparse
-
+from os import listdir, move
+from shutil import rmtree
 from converter import convert_dir, split_cues, validate_dir
-from util import find
+from converter.util import find
 
 # moves all .m4a files to Automatically Add to Music Folder
 # input: str path to find .m4a files in
@@ -18,13 +16,8 @@ def move_to_auto(search_path, auto_path):
 dir = '/Volumes/nathanbackup/Downloads'
 auto_folder = '/Volumes/nathanbackup/Library/Automatically Add to Music.localized'
 
-parser = argparse.ArgumentParser()
-parser.add_argument('-c', '--split-cues', help='split large audio files based on cue', action='store_true')
-args = parser.parse_args()
-
-
-if args.split_cues:
-    cues = get_cues(dir)
+cues = get_cues(dir)
+if len(cues) > 0:
     split_cues(cues)
 
 convert_dir(dir)

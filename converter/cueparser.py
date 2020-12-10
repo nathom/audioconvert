@@ -2,15 +2,23 @@
 '''
 parses .cue files and splits audio
 '''
+from collections import namedtuple
+import hashlib
+import io
+import shutil
+import PIL
+from PIL import Image
+_HAS_PIL = True
+BICUBIC = PIL.Image.BICUBIC
 import re
 import os
-import music_tag
 import subprocess
 import json
 from mutagen.flac import FLAC, Picture
-from mutagen.mp4 import MP4
-from pathlib import Path
+from mutagen.mp4 import MP4, MP4Cover
+from mutagen.id3 import PictureType
 
+from util import find
 # input: str path of .cue file
 # output: dict of cue info
 '''
@@ -26,19 +34,19 @@ from pathlib import Path
 
 class Cue(object):
     _mp4_keys = {
-        'title': r'\xa9nam',
-        'artist': r'\xa9ART',
-        'album': r'\xa9alb',
+        'title': r'©nam',
+        'artist': r'©ART',
+        'album': r'©alb',
         'albumartist': r'aART',
-        'composer': r'\xa9day',
-        'year': r'\xa9day',
-        'comment': r'\xa9cmt',
+        'composer': r'©day',
+        'year': r'©day',
+        'comment': r'©cmt',
         'description': 'desc',
         'purchase_date': 'purd',
-        'grouping': r'\xa9grp',
-        'genre': r'\xa9gen',
-        'lyrics': r'\xa9lyr',
-        'encoder': r'\xa9too',
+        'grouping': r'©grp',
+        'genre': r'©gen',
+        'lyrics': r'©lyr',
+        'encoder': r'©too',
         'copyright': 'cprt',
         'compilation': 'cpil',
         'cover': 'covr',
@@ -50,6 +58,10 @@ class Cue(object):
         self.parent_dir = '/'.join(self.filepath.split('/')[:-1])
 
         self.tracklist = []
+
+        self.images = []
+        for path in find('png', 'jpg', 'jpeg', dir=self.parent_dir):
+            self._add_image(path)
 
         self.album = None
         self.albumartist = None
@@ -103,14 +115,15 @@ class Cue(object):
 
     def split(self):
         i = 0
-        print(zip(self.tracklist))
         for track in self.tracklist:
             conv_path = self.tracklist[i].filepath_converted = f'{self.parent_dir}/{i+1}. {track.name}.m4a'
             if not os.path.exists(conv_path):
+                print(f'Splitting {track.name}')
                 self._split_file(track.filepath, conv_path, track.start, track.length)
             else:
                 print(f'{track.name} already converted.')
             i += 1
+        self.tag_files()
 
     @property
     def totaltracks(self):
@@ -121,17 +134,45 @@ class Cue(object):
         discs = [track.pos[0] for track in self.tracklist]
         return max(discs)
 
+    @property
+    def artwork(self):
+        return self.images
+
+    @artwork.setter
+    def artwork(self, val):
+        self.images = []
+        self._add_image(val)
+
+
+
+    @property
+    def copyright(self):
+        if self.label is not None and '©' not in self.label:
+            return f'© {self.label}'
+        elif self.label is not None:
+            return self.label
+
+    @copyright.setter
+    def copyright(self, val):
+        self.label = val
+
+
+
+
     def tag_files(self):
         info = {}
         for k, v in self.__dict__.items():
-            if k in ['genre', 'albumartist', 'tracktotal', 'disctotal', 'album', 'label', 'copyright', 'url', 'year'] and v is not None:
+            if k in ['genre', 'albumartist', 'tracktotal', 'disctotal', 'album', 'copyright', 'url', 'year'] and v is not None:
                 info[k] = v
+            if k == 'label':
+                info['copyright'] = self.copyright
 
         # TODO: properly implement disc numbers
         tags = [{
             'title': track.name,
             'artist': track.artist,
             'tracknumber': [(track.pos[1], self.totaltracks)],
+            'discnumber': [(track.pos[0], self.totaldiscs)],
             **info
         } for track in self.tracklist]
 
@@ -139,17 +180,10 @@ class Cue(object):
         for track in self.tracklist:
             audio = MP4(track.filepath_converted)
             for k, v in tags[i].items():
-                print(k, v)
                 audio[Cue._mp4_keys[k]] = v
             i += 1
-            print('\n\n')
+            audio['covr'] = self.images
             audio.save()
-
-    def test_tag(self):
-        audio = MP4(self.tracklist[0].filepath_converted)
-        audio['trkn'] = [(3, 17)]
-        audio.save()
-
 
 
     def get(self, key):
@@ -166,15 +200,24 @@ class Cue(object):
         else:
             raise AttributeError('Invalid key')
 
+    def _add_image(self, path):
+        ext = lambda p: p.split('.')[-1]
+        if ext(path) in ['jpeg', 'jpg']:
+            fmt = MP4Cover.FORMAT_JPEG
+        else:
+            fmt = MP4Cover.FORMAT_PNG
+
+        f = open(path, 'rb')
+        self.images.append(MP4Cover(f.read(), imageformat=fmt))
+
+
     def _split_file(self, in_file: str, out_file: str, start: float, length: float) -> None:
-        print(in_file, out_file, start, length)
         command = ['ffmpeg', '-i', in_file, '-map_metadata', '-1', '-ss', str(start), '-vn', '-acodec', 'alac', '-map', '0:0', '-y', out_file]
 
         if length:
             command.insert(7, '-t')
             command.insert(8, str(length))
 
-        print(command)
         with open(os.devnull, 'rb') as devnull:
             p = subprocess.Popen(command, stdin=devnull, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p_out, p_err = p.communicate()
@@ -224,7 +267,7 @@ class Cue(object):
         self.set(self._format_query(key), val)
 
     def __str__(self):
-        d = self.__dict__
+        d = self.__dict__.copy()
         d['tracklist'] = list(map(str, d['tracklist']))
         j = json.dumps(d, indent=3)
         return j
@@ -248,21 +291,17 @@ class Track(object):
 
     @property
     def length(self):
-        if self.end and self.start:
+        if self.end is not None and self.start is not None:
             return self.end - self.start
         else:
             return None
 
 
     def __str__(self):
-        return f'{self.pos}. {self.name}'
+        return f'{self.pos}. {self.name} ({self.start}:{self.end} = {self.length})'
     def __len__(self):
         return self.length
 
 
-
-
-c = Cue('/Volumes/nathanbackup/Downloads/CDA68266 - Mantyjarvi - Choral Music - 2020/Mantyjarvi - Choral Music copy.cue')
+c = Cue('/Volumes/nathanbackup/Santa Esmeralda - Another Cha-Cha 1979/Santa Esmeralda - Another Cha-Cha.cue')
 c.split()
-#c.test_tag()
-c.tag_files()

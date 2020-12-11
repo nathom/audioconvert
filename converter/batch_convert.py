@@ -3,7 +3,8 @@ import subprocess
 from shutil import move
 from pathlib import Path
 
-from . import cueparser
+import cueparser
+import util
 # converts flac to alac
 # input: str path of flac, str path of output directory
 # output: None
@@ -31,21 +32,13 @@ def convert_alac(path, delete_original=True):
     p_out, p_err = p.communicate()
 
 
-# finds files with specified extension(s)
-def find(*args, dir):
-    files = []
-    for ext in args:
-        pathlist = Path(dir).rglob(f'*.{ext}')
-        for path in pathlist:
-            path = str(path)
-            files.append(path)
-    return files
+
 
 # finds and parses all cue files in a dir
 # input str: path to directory
 # output dict: dict of cue info
 def get_cues(dir):
-    cues = [cueparser.Cue(c) for c in find('cue', dir=dir)]
+    cues = [cueparser.Cue(c) for c in util.find('cue', dir=dir)]
     return cues
 
 def splitjoin(s, delim, start=None, end=None):
@@ -56,7 +49,7 @@ def split_cues(cues):
         cue.split()
 
 def convert_all_alac(dir):
-    paths = find('flac', 'wav', 'wv', 'dsf', dir=dir)
+    paths = util.find('flac', 'wav', 'wv', 'dsf', dir=dir, organize=True)
     for path in paths:
         print(f"Converting {path.split('/')[-1]}")
         convert_alac(path)

@@ -1,14 +1,32 @@
 from pathlib import Path
 
 # finds files with specified extension(s)
-def find(*args, dir):
+def find(*args, dir, organize=False):
     files = []
     for ext in args:
         pathlist = Path(dir).rglob(f'*.{ext}')
         for path in pathlist:
             path = str(path)
             files.append(path)
-    return files
+
+    if organize:
+        files.sort()
+        files_dict = {}
+        new_files = []
+        for file in files:
+            parent = '/'.join(file.split('/')[:-1])
+            if parent not in files_dict:
+                files_dict[parent] = []
+            files_dict[parent].append(file)
+        key = lambda p: int(p.split('/')[-1][:1])
+        for k, v in files_dict.items():
+            v.sort(key=key)
+            new_files.extend(v)
+
+        return new_files
+    else:
+        return files
+
 
 def splitjoin(s, delim, start=None, end=None):
     return delim.join(s.split(delim)[start:end])

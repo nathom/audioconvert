@@ -18,7 +18,7 @@ from mutagen.flac import FLAC, Picture
 from mutagen.mp4 import MP4, MP4Cover
 from mutagen.id3 import PictureType
 
-from .util import find
+from util import find
 # input: str path of .cue file
 # output: dict of cue info
 '''

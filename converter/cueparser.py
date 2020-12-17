@@ -18,7 +18,7 @@ from mutagen.flac import FLAC, Picture
 from mutagen.mp4 import MP4, MP4Cover
 from mutagen.id3 import PictureType
 
-from util import find
+from .util import find
 # input: str path of .cue file
 # output: dict of cue info
 '''
@@ -30,7 +30,6 @@ from util import find
 'timestamps': list of stamps in seconds; starts at 0, ends at start of last track
 }
 '''
-# TODO: add tagging capabilities
 
 class Cue(object):
     _mp4_keys = {
@@ -167,7 +166,6 @@ class Cue(object):
             if k == 'label':
                 info['copyright'] = self.copyright
 
-        # TODO: properly implement disc numbers
         tags = [{
             'title': track.name,
             'artist': track.artist,

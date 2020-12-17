@@ -39,7 +39,7 @@ This is the machinery behind processing .cue files. It assumes there is artwork 
 ```python
 from cueparser import Cue
 my_cue = Cue('/path/to/cue/file.cue')
-print(my_cue) # shows all the info inside the file
+
 # to change attributes, use like a dict
 my_cue['artist'] = 'New Artist'
 my_cue['tracklist'][0]['name'] = 'The first track'

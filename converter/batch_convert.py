@@ -3,8 +3,8 @@ import subprocess
 from shutil import move
 from pathlib import Path
 
-import cueparser
-import util
+from . import cueparser
+from . import util
 # converts flac to alac
 # input: str path of flac, str path of output directory
 # output: None

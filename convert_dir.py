@@ -12,23 +12,25 @@ def move_to_auto(search_path, auto_path):
         filename = path.split('/')[-1]
         move(path, f"{auto_path}/{filename}")
 
+def convert_all(dir, auto_folder):
+    cues = converter.get_cues(dir)
+    if len(cues) > 0:
+        converter.split_cues(cues)
 
-dir = '/Volumes/nathanbackup/Downloads'
-auto_folder = '/Volumes/nathanbackup/Library/Automatically Add to Music.localized'
+    converter.convert_dir(dir)
+    converter.validate_dir(dir)
+    move_to_auto(dir, auto_folder)
 
-cues = converter.get_cues(dir)
-if len(cues) > 0:
-    converter.split_cues(cues)
+    # deletes the flac files
+    remaining_dirs = listdir(dir)
+    remaining_dirs.remove('.DS_Store')
+    if remaining_dirs:
+        for file in remaining_dirs:
+            rmtree(dir + '/' + file)
 
-converter.convert_dir(dir)
-converter.validate_dir(dir)
-move_to_auto(dir, auto_folder)
 
-# deletes the flac files
-remaining_dirs = listdir(dir)
-remaining_dirs.remove('.DS_Store')
-if remaining_dirs:
-    for file in remaining_dirs:
-        rmtree(dir + '/' + file)
-
+if __name__ == '__main__':
+    dir = '/Volumes/nathanbackup/Downloads'
+    auto_folder = '/Volumes/nathanbackup/Library/Automatically Add to Music.localized'
+    convert_all(dir, auto_folder)
 

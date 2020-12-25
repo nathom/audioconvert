@@ -20,7 +20,6 @@ def find(*args, dir, organize=False):
             files_dict[parent].append(file)
         key = lambda p: int(p.split('/')[-1][:2] if p.split('/')[-1][1] != '.' else p.split('/')[-1][0])
         for k, v in files_dict.items():
-            print(f'{k, v=}')
             v.sort(key=key)
             new_files.extend(v)
 

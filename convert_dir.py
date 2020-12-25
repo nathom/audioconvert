@@ -1,6 +1,7 @@
 from os import listdir
 from shutil import rmtree, move
 import converter
+from tqdm import tqdm
 from converter.util import find
 
 # moves all .m4a files to Automatically Add to Music Folder
@@ -8,7 +9,7 @@ from converter.util import find
 # output: None
 def move_to_auto(search_path, auto_path):
     pathlist = find('m4a', dir=search_path)
-    for path in pathlist:
+    for path in tqdm(pathlist, unit='files'):
         filename = path.split('/')[-1]
         move(path, f"{auto_path}/{filename}")
 
@@ -19,6 +20,7 @@ def convert_all(dir, auto_folder):
 
     converter.convert_dir(dir)
     converter.validate_dir(dir)
+    print(f'\nMoving files to {auto_folder}...\n')
     move_to_auto(dir, auto_folder)
 
     # deletes the flac files

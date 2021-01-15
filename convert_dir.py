@@ -1,4 +1,5 @@
-from os import listdir
+import os
+import argparse
 from shutil import rmtree, move
 import converter
 from tqdm import tqdm
@@ -24,7 +25,7 @@ def convert_all(dir, auto_folder):
     move_to_auto(dir, auto_folder)
 
     # deletes the flac files
-    remaining_dirs = listdir(dir)
+    remaining_dirs = os.listdir(dir)
     remaining_dirs.remove('.DS_Store')
     if remaining_dirs:
         for file in remaining_dirs:
@@ -32,7 +33,10 @@ def convert_all(dir, auto_folder):
 
 
 if __name__ == '__main__':
-    dir = '/Volumes/nathanbackup/Downloads'
-    auto_folder = '/Volumes/nathanbackup/Library/Automatically Add to Music.localized'
-    convert_all(dir, auto_folder)
+    parser = argparse.ArgumentParser(description='Convert all files to alac and move to folder')
+    parser.add_argument('dir', help='The directory to convert.')
+    parser.add_argument('auto_folder', help='The Automatically Add to Music folder in the macOS music library. The files will be moved here after conversion.')
+    args = parser.parse_args()
+
+    convert_all(args.dir, args.auto_folder)
 

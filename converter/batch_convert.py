@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 from shutil import move
 from pathlib import Path
@@ -51,6 +52,10 @@ def split_cues(cues):
 
 def convert_all_alac(dir):
     paths = util.find('flac', 'wav', 'wv', 'dsf', dir=dir, organize=True)
+    if len(paths) == 0:
+        print(f'{dir} is empty.')
+        sys.exit()
+
     print(f'\nConverting files in {dir}...\n')
     for path in tqdm(paths, unit='track'):
         convert_alac(path)

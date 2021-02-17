@@ -51,7 +51,7 @@ def split_cues(cues):
         cue.split()
 
 def convert_all_alac(dir):
-    paths = util.find('flac', 'wav', 'wv', 'dsf', dir=dir, organize=True)
+    paths = util.find('flac', 'wav', 'wv', 'dsf', dir=dir)
     if len(paths) == 0:
         print(f'{dir} is empty.')
         sys.exit()

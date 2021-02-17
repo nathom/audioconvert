@@ -20,6 +20,7 @@ def convert_all(dir, auto_folder):
         converter.split_cues(cues)
 
     converter.convert_dir(dir)
+    print('\nValidating metadata...\n')
     converter.validate_dir(dir)
     print(f'\nMoving files to {auto_folder}...\n')
     move_to_auto(dir, auto_folder)
@@ -29,7 +30,8 @@ def convert_all(dir, auto_folder):
     remaining_dirs.remove('.DS_Store')
     if remaining_dirs:
         for file in remaining_dirs:
-            rmtree(dir + '/' + file)
+            if os.path.isdir(dir + '/' + file):
+                rmtree(dir + '/' + file)
 
 
 if __name__ == '__main__':

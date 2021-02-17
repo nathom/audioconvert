@@ -32,27 +32,28 @@ from .util import find
 '''
 
 class Cue(object):
-    _mp4_keys = {
-        'title': r'©nam',
-        'artist': r'©ART',
-        'album': r'©alb',
-        'albumartist': r'aART',
-        'composer': r'©day',
-        'year': r'©day',
-        'comment': r'©cmt',
-        'description': 'desc',
-        'purchase_date': 'purd',
-        'grouping': r'©grp',
-        'genre': r'©gen',
-        'lyrics': r'©lyr',
-        'encoder': r'©too',
-        'copyright': 'cprt',
-        'compilation': 'cpil',
-        'cover': 'covr',
-        'tracknumber': 'trkn',
-        'discnumber': 'disk'
-    }
+
     def __init__(self, path):
+        self._mp4_keys = {
+            'title': r'©nam',
+            'artist': r'©ART',
+            'album': r'©alb',
+            'albumartist': r'aART',
+            'composer': r'©day',
+            'year': r'©day',
+            'comment': r'©cmt',
+            'description': 'desc',
+            'purchase_date': 'purd',
+            'grouping': r'©grp',
+            'genre': r'©gen',
+            'lyrics': r'©lyr',
+            'encoder': r'©too',
+            'copyright': 'cprt',
+            'compilation': 'cpil',
+            'cover': 'covr',
+            'tracknumber': 'trkn',
+            'discnumber': 'disk'
+        }
         self.filepath = path
         self.parent_dir = '/'.join(self.filepath.split('/')[:-1])
 
@@ -79,7 +80,7 @@ class Cue(object):
         self.discid = None
 
 
-        lines = open(self.filepath).readlines()
+        lines = open(self.filepath, encoding='utf-8-sig').readlines()
 
         for l in lines:
             l = l.strip()
@@ -178,22 +179,22 @@ class Cue(object):
         for track in self.tracklist:
             audio = MP4(track.filepath_converted)
             for k, v in tags[i].items():
-                audio[Cue._mp4_keys[k]] = v
+                if v is not None:
+                    audio[self._mp4_keys[k]] = v
             i += 1
             audio['covr'] = self.images
             audio.save()
 
 
     def get(self, key):
-        if key in possible_keys:
+        if key in self.__dict__:
             return self.__dict__[key]
         else:
             raise AttributeError('Invalid key')
 
 
     def set(self, key, val):
-        possible_keys = [k for k,v in self.__dict__.items()]
-        if key in possible_keys:
+        if key in self.__dict__:
             self.__dict__[key] = val
         else:
             raise AttributeError('Invalid key')
@@ -210,7 +211,22 @@ class Cue(object):
 
 
     def _split_file(self, in_file: str, out_file: str, start: float, length: float) -> None:
-        command = ['ffmpeg', '-i', in_file, '-map_metadata', '-1', '-ss', str(start), '-vn', '-acodec', 'alac', '-map', '0:0', '-y', out_file]
+        command = [
+            'ffmpeg',
+            '-i',
+            in_file,
+            '-map_metadata',
+            '-1',
+            '-ss',
+            str(start),
+            '-vn',
+            '-acodec',
+            'alac',
+            '-map',
+            '0:0',
+            '-y',
+            out_file
+        ]
 
         if length:
             command.insert(7, '-t')
@@ -222,7 +238,7 @@ class Cue(object):
 
 
 
-    # input: str timestamp in format hh:mm:ss
+    # input: str timestamp in format 'hh:mm:ss'
     # output: int timestamp in seconds
     def _format_time(self, stamp: str) -> int:
         sl = stamp.split(':')
@@ -297,6 +313,7 @@ class Track(object):
 
     def __str__(self):
         return f'{self.pos}. {self.name} ({self.start}:{self.end} = {self.length})'
+
     def __len__(self):
         return self.length
 

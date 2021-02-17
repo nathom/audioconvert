@@ -1,10 +1,14 @@
 import re
 from pathlib import Path
 import os
+from tqdm import tqdm
 
 import music_tag
 
 def artwork(path1, path2):
+    if not (os.path.exists(path1) and os.path.exists(path2)):
+        return
+
     f1 = music_tag.load_file(path1)
     f2 = music_tag.load_file(path2)
 
@@ -25,11 +29,10 @@ def find(*args, dir):
     return files
 
 def validate_dir(downloads_path):
-    tracks = find('m4a', 'flac', dir=downloads_path)
-    tracks = [re.sub('\.m4a|\.flac', '', t) for t in tracks]
+    tracks = find('m4a', dir=downloads_path)
+    tracks = [s.replace('.m4a', '') for s in tracks]
 
-    for track in tracks:
+    for track in tqdm(tracks, unit='files'):
         artwork(f'{track}.flac', f'{track}.m4a')
-
 
 

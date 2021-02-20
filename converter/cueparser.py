@@ -19,17 +19,7 @@ from mutagen.mp4 import MP4, MP4Cover
 from mutagen.id3 import PictureType
 
 from .util import find
-# input: str path of .cue file
-# output: dict of cue info
-'''
-{
-'artist': str
-'album': str
-'filepath': str
-'tracklist': list of titles
-'timestamps': list of stamps in seconds; starts at 0, ends at start of last track
-}
-'''
+
 
 class Cue(object):
 
@@ -85,8 +75,12 @@ class Cue(object):
         for l in lines:
             l = l.strip()
             if l.startswith('REM'):
-                m = re.match(r'REM (\w+) "?([\w\d-]+)"?', l).groups()
-                self.set(m[0].lower(), m[1])
+                try:
+                    m = re.match(r'REM (\S+) "?(\S+)"?', l).groups()
+                    self.set(m[0].lower(), m[1])
+                except AttributeError:
+                    print(f'Logging: unable to set "{l}"')
+
             elif l.startswith('PERFORMER') and self.albumartist is None:
                 self.albumartist = self._get_in_quotes(l)
             elif l.startswith('TITLE') and self.album is None:
@@ -113,17 +107,18 @@ class Cue(object):
                 raise NotImplementedError(f'"{l.split(" ")[0]}" tag not implemented')
         self._get_stamps()
 
-    def split(self):
-        i = 0
-        for track in self.tracklist:
+    def split(self, remove_flac=False):
+        for i, track in enumerate(self.tracklist):
             conv_path = self.tracklist[i].filepath_converted = f'{self.parent_dir}/{i+1}. {track.name}.m4a'
             if not os.path.exists(conv_path):
-                print(f'Splitting {track.name}')
+                # print(f'Splitting {track.name}')
                 self._split_file(track.filepath, conv_path, track.start, track.length)
             else:
                 print(f'{track.name} already converted.')
-            i += 1
+
         self.tag_files()
+        if remove_flac:
+            os.remove(self.tracklist[0].filepath)
 
     @property
     def totaltracks(self):
@@ -197,9 +192,9 @@ class Cue(object):
         if key in self.__dict__:
             self.__dict__[key] = val
         else:
-            raise AttributeError('Invalid key')
+            raise AttributeError(f'Invalid key: {key}')
 
-    def _add_image(self, path):
+    def _add_image(self, path: str):
         ext = lambda p: p.split('.')[-1]
         if ext(path) in ['jpeg', 'jpg']:
             fmt = MP4Cover.FORMAT_JPEG
@@ -288,20 +283,21 @@ class Cue(object):
 
 
 
-
-
 class Track(object):
     def __init__(self, **kwargs):
-        self.filepath = kwargs['filepath'] if 'filepath' in kwargs else None
-        self.filepath_converted = kwargs['filepath_converted'] if 'filepath_converted' in kwargs else None
+        self.filepath = None
+        self.filepath_converted = None
 
-        self.name = kwargs['name'] if 'name' in kwargs else None
-        self.artist = kwargs['artist'] if 'artist' in kwargs else None
-        self.album = kwargs['album'] if 'album' in kwargs else None
-        self.pos = kwargs['pos'] if 'pos' in kwargs else None
+        self.name = None
+        self.artist = None
+        self.album = None
+        self.pos = None
 
-        self.start = kwargs['start'] if 'start' in kwargs else None
-        self.end = kwargs['end'] if 'end' in kwargs else None
+        self.start = None
+        self.end = None
+
+        for k, v in kwargs.items():
+            self.__dict__[k] = v
 
     @property
     def length(self):

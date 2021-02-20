@@ -17,9 +17,10 @@ def move_to_auto(search_path, auto_path):
 def convert_all(dir, auto_folder):
     cues = converter.get_cues(dir)
     if len(cues) > 0:
-        converter.split_cues(cues)
+        converter.split_cues(cues, remove_flac=True)
 
-    converter.convert_dir(dir)
+    print('\nConverting files to ALAC...\n')
+    converter.convert_dir(dir, threads=8)
     print('\nValidating metadata...\n')
     converter.validate_dir(dir)
     print(f'\nMoving files to {auto_folder}...\n')
@@ -36,6 +37,13 @@ def convert_all(dir, auto_folder):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert all files to alac and move to folder')
+    parser.add_argument('-nd', '--no-delete',
+                        help='Do not delete the files after conversion',
+                        action='store_true')
+    parser.add_argument('-nm', '--no-move',
+                        help='Do not move the files after conversion'
+                        action='store_true')
+
     parser.add_argument('dir', help='The directory to convert.')
     parser.add_argument('auto_folder', help='The Automatically Add to Music folder in the macOS music library. The files will be moved here after conversion.')
     args = parser.parse_args()

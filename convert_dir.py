@@ -5,6 +5,7 @@ import converter
 from tqdm import tqdm
 from converter.util import find
 
+
 # moves all .m4a files to Automatically Add to Music Folder
 # input: str path to find .m4a files in
 # output: None
@@ -13,6 +14,7 @@ def move_to_auto(search_path, auto_path):
     for path in tqdm(pathlist, unit='files'):
         filename = path.split('/')[-1]
         move(path, f"{auto_path}/{filename}")
+
 
 def convert_all(dir, auto_folder):
     cues = converter.get_cues(dir)
@@ -36,17 +38,20 @@ def convert_all(dir, auto_folder):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Convert all files to alac and move to folder')
+    parser = argparse.ArgumentParser(
+        description='Convert all files to alac and move to folder')
     parser.add_argument('-nd', '--no-delete',
                         help='Do not delete the files after conversion',
                         action='store_true')
     parser.add_argument('-nm', '--no-move',
-                        help='Do not move the files after conversion'
+                        help='Do not move the files after conversion',
                         action='store_true')
 
     parser.add_argument('dir', help='The directory to convert.')
-    parser.add_argument('auto_folder', help='The Automatically Add to Music folder in the macOS music library. The files will be moved here after conversion.')
+    parser.add_argument('auto_folder',
+                        help='The Automatically Add to Music folder in the '
+                        + 'macOS music library. The files will be moved here '
+                        + 'after conversion.')
     args = parser.parse_args()
 
     convert_all(args.dir, args.auto_folder)
-

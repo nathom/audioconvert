@@ -12,31 +12,32 @@ from . import util
 # input: str path of flac, str path of output directory
 # output: None
 def convert_alac(path):
-    ext = path.split('.')[-1]
-    outfile = path.replace('.' + ext, '.m4a')
+    ext = path.split(".")[-1]
+    outfile = path.replace("." + ext, ".m4a")
 
-    with open(os.devnull, 'rb') as devnull:
+    with open(os.devnull, "rb") as devnull:
         command = get_conversion_command(path, outfile)
-        p = subprocess.Popen(command, stdin=devnull,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(
+            command, stdin=devnull, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
 
     p_out, p_err = p.communicate()
 
 
 def get_conversion_command(in_path, out_path) -> list:
     conversion_command = [
-        'ffmpeg',
-        '-loglevel',
-        'panic',
-        '-i',
+        "ffmpeg",
+        "-loglevel",
+        "panic",
+        "-i",
         in_path,
-        '-vn',
-        '-c:v',
-        'copy',
-        '-c:a',
-        'alac',
-        '-y',
-        out_path
+        "-vn",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "alac",
+        "-y",
+        out_path,
     ]
     return conversion_command
 
@@ -45,7 +46,7 @@ def get_conversion_command(in_path, out_path) -> list:
 # input str: path to directory
 # output dict: dict of cue info
 def get_cues(dir):
-    cues = [cueparser.Cue(c) for c in util.find('cue', dir=dir)]
+    cues = [cueparser.Cue(c) for c in util.find("cue", dir=dir)]
     return cues
 
 
@@ -58,15 +59,21 @@ def split_cues(cues, remove_flac=False):
         cue.split(remove_flac=remove_flac)
 
 
-def convert_all_alac(dir, threads=1):
-    paths = util.find('flac', 'wav', 'wv', 'dsf', dir=dir)
+def convert_all_alac(dir, threads=1, skip_conv=False):
+    os.system("ulimit -n 10000")
+    paths = util.find("flac", "wav", "wv", "dsf", dir=dir)
+    if skip_conv:
+        for p in paths:
+            if os.path.exists(fmt_alac_path(p)):
+                paths.remove(p)
+
     if len(paths) == 0:
-        print(f'{dir} is empty.')
+        print(f"{dir} is empty.")
         sys.exit()
 
     if threads == 1:
-        print(f'\nConverting files in {dir}...\n')
-        for path in tqdm(paths, unit='track'):
+        print(f"\nConverting files in {dir}...\n")
+        for path in tqdm(paths, unit="track"):
             convert_alac(path)
     else:
         # add 30 processes
@@ -88,11 +95,11 @@ def convert_all_alac(dir, threads=1):
                     counter += 1
             return counter
 
-        with open(os.devnull, 'rb') as devnull:
+        with open(os.devnull, "rb") as devnull:
             processes = []
             total_paths = len(paths)
             # while processes are not finished
-            bar = tqdm(total=total_paths, unit='track')
+            bar = tqdm(total=total_paths, unit="track")
             # p_count = 0
             prev = 0
             while len(paths) > 0:
@@ -103,11 +110,13 @@ def convert_all_alac(dir, threads=1):
 
                 # add process
                 path = paths.pop()
-                command = get_conversion_command(path,
-                                                 fmt_alac_path(path))
-                p = subprocess.Popen(command, stdin=devnull,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
+                command = get_conversion_command(path, fmt_alac_path(path))
+                p = subprocess.Popen(
+                    command,
+                    stdin=devnull,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
                 processes.append(p)
                 # p_count += 1
                 # print(f'open files: {p_count=}')
@@ -126,6 +135,6 @@ def convert_all_alac(dir, threads=1):
 
 
 def fmt_alac_path(path):
-    ext = path.split('.')[-1]
-    outfile = path.replace('.' + ext, '.m4a')
+    ext = path.split(".")[-1]
+    outfile = path.replace("." + ext, ".m4a")
     return outfile

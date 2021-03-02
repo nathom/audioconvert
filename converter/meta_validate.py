@@ -13,9 +13,9 @@ def artwork(path1, path2):
     f2 = music_tag.load_file(path2)
 
     try:
-        f2['artwork']
+        f2["artwork"]
     except KeyError:
-        f2['artwork'] = f1['artwork']
+        f2["artwork"] = f1["artwork"]
 
     f2.save()
 
@@ -23,7 +23,7 @@ def artwork(path1, path2):
 def find(*args, dir):
     files = []
     for ext in args:
-        pathlist = Path(dir).rglob(f'*.{ext}')
+        pathlist = Path(dir).rglob(f"*.{ext}")
         for path in pathlist:
             path = str(path)
             files.append(path)
@@ -31,8 +31,8 @@ def find(*args, dir):
 
 
 def validate_dir(downloads_path):
-    tracks = find('m4a', dir=downloads_path)
-    tracks = [s.replace('.m4a', '') for s in tracks]
+    tracks = find("m4a", dir=downloads_path)
+    tracks = [s.replace(".m4a", "") for s in tracks]
 
-    for track in tqdm(tracks, unit='files'):
-        artwork(f'{track}.flac', f'{track}.m4a')
+    for track in tqdm(tracks, unit="files"):
+        artwork(f"{track}.flac", f"{track}.m4a")
